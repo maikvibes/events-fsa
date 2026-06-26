@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, RedisClientType } from 'redis';
+import { redisTlsOption } from '@app/shared/tls-config';
 
 @Injectable()
 export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
@@ -10,11 +11,15 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
   constructor(private readonly config: ConfigService) {}
 
   async onModuleInit() {
+    const tls = redisTlsOption();
+    const socket: Record<string, unknown> = {
+      host: this.config.get('REDIS_HOST', 'localhost'),
+      port: this.config.get<number>('REDIS_PORT', 6379),
+    };
+    if (tls) socket.tls = tls;
+
     this.client = createClient({
-      socket: {
-        host: this.config.get('REDIS_HOST', 'localhost'),
-        port: this.config.get<number>('REDIS_PORT', 6379),
-      },
+      socket,
       password: this.config.get('REDIS_PASSWORD') || undefined,
     }) as RedisClientType;
 

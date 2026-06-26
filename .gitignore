@@ -1,6 +1,31 @@
+# Secrets and generated material
+.env
+.env.*
+!.env.example
+!.env.team.template
+secrets/
+nginx/certs/
+
+# Local app secrets
+firebase-adminsdk*.json
+*.pem
+*.key
+*.crt
+*.jks
+*.p12
+*.p8
+*.pkcs8
+
+# Node
 node_modules/
 dist/
-.env
-*.log
+build/
 coverage/
-apps/*/src/generated/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo

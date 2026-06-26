@@ -1,0 +1,4 @@
+user default off
+user ${REDIS_ADMIN_USER} on ~* &* +@all >${REDIS_ADMIN_PASSWORD}
+user ${REDIS_APP_USER} on ~* &* +@read +@write +@pubsub +@connection +@sortedset +@stream -@admin -@dangerous -@keyspace >${REDIS_APP_PASSWORD}
+user ${REDIS_HEALTH_USER} on ~* &* +@connection +@read >${REDIS_HEALTH_PASSWORD}
