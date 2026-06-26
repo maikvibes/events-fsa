@@ -11,6 +11,21 @@ set -euo pipefail
 echo "[kafka-init] Rendering config from environment..."
 . /etc/confluent/docker/configure
 
+# The Confluent configure script sets KAFKA_OPTS=-Djava.security.auth.login.config=/dev/null
+# when it can't find a pre-built JAAS file. For the SASL_SSL EXTERNAL listener the broker
+# must have a KafkaServer entry — SCRAM stores credentials in ZooKeeper so no static
+# password is needed here.
+if [[ -n "${KAFKA_SASL_ENABLED_MECHANISMS:-}" ]]; then
+  _JAAS_FILE=/tmp/kafka_server_jaas.conf
+  cat > "$_JAAS_FILE" <<'JAAS'
+KafkaServer {
+  org.apache.kafka.common.security.scram.ScramLoginModule required;
+};
+JAAS
+  export KAFKA_OPTS="-Djava.security.auth.login.config=${_JAAS_FILE}"
+  echo "[kafka-init] JAAS config written to ${_JAAS_FILE}"
+fi
+
 echo "[kafka-init] Starting broker..."
 mkdir -p /var/log/kafka
 # The configure script writes to /etc/kafka/kafka.properties (NOT server.properties).
