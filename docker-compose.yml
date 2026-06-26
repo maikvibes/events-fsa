@@ -73,6 +73,16 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    develop:
+      watch:
+        - path: ./apps/api-gateway
+          action: rebuild
+        - path: ./libs
+          action: rebuild
+        - path: ./package.json
+          action: rebuild
+        - path: ./Dockerfile
+          action: rebuild
 
   auth:
     build:
@@ -89,6 +99,16 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+    develop:
+      watch:
+        - path: ./apps/auth
+          action: rebuild
+        - path: ./libs
+          action: rebuild
+        - path: ./package.json
+          action: rebuild
+        - path: ./Dockerfile
+          action: rebuild
 
   events:
     build:
@@ -107,6 +127,16 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    develop:
+      watch:
+        - path: ./apps/events
+          action: rebuild
+        - path: ./libs
+          action: rebuild
+        - path: ./package.json
+          action: rebuild
+        - path: ./Dockerfile
+          action: rebuild
 
   notifications:
     build:
@@ -123,6 +153,16 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+    develop:
+      watch:
+        - path: ./apps/notifications
+          action: rebuild
+        - path: ./libs
+          action: rebuild
+        - path: ./package.json
+          action: rebuild
+        - path: ./Dockerfile
+          action: rebuild
 
 volumes:
   postgres_data:
