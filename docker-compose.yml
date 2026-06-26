@@ -1,24 +1,8 @@
 name: events-fsa
 
-# The app services connect directly to the data services (postgres, kafka,
-# redis) on the docker-internal network created by docker-compose.infra.yml.
-# They use TLS with the same private CA as the host nginx. CA cert is mounted
-# read-only from /etc/ssl/events-fsa/ca.crt; per-service TLS knobs are
-# driven by .env (see .env.example).
-
-# The infra network the data services live on. Reused so the app can resolve
-# `postgres`, `kafka`, `redis`, `zookeeper` by name.
-x-infra-network:
-  name: events-fsa-infra_backend
-  external: true
-
-# The CA cert + Postgres key, owned by the host. The app containers only
-# need the CA cert; postgres.crt/postgres.key are mounted into the
-# events-fsa-infra-postgres-1 container by docker-compose.infra.yml.
-x-ca-mount:
-  source: /etc/ssl/events-fsa/ca.crt
-  target: /etc/ssl/events-fsa/ca.crt
-  read_only: true
+# App services connect to data services (postgres, kafka, redis) on the
+# docker-internal network created by docker-compose.infra.yml.
+# TLS CA cert is bind-mounted read-only from /etc/ssl/events-fsa/ca.crt.
 
 services:
   api-gateway:
@@ -35,12 +19,7 @@ services:
       # listener). Override the old PLAINTEXT default explicitly.
       KAFKA_BROKER: ${KAFKA_BROKER:-kafka:29093}
     volumes:
-      - ca-cert:/etc/ssl/events-fsa/ca.crt:ro
-    depends_on:
-      kafka:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - /etc/ssl/events-fsa/ca.crt:/etc/ssl/events-fsa/ca.crt:ro
     networks:
       - backend
     develop:
@@ -64,12 +43,7 @@ services:
     environment:
       KAFKA_BROKER: ${KAFKA_BROKER:-kafka:29093}
     volumes:
-      - ca-cert:/etc/ssl/events-fsa/ca.crt:ro
-    depends_on:
-      kafka:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
+      - /etc/ssl/events-fsa/ca.crt:/etc/ssl/events-fsa/ca.crt:ro
     networks:
       - backend
     develop:
@@ -93,14 +67,7 @@ services:
     environment:
       KAFKA_BROKER: ${KAFKA_BROKER:-kafka:29093}
     volumes:
-      - ca-cert:/etc/ssl/events-fsa/ca.crt:ro
-    depends_on:
-      kafka:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - /etc/ssl/events-fsa/ca.crt:/etc/ssl/events-fsa/ca.crt:ro
     networks:
       - backend
     develop:
@@ -124,12 +91,7 @@ services:
     environment:
       KAFKA_BROKER: ${KAFKA_BROKER:-kafka:29093}
     volumes:
-      - ca-cert:/etc/ssl/events-fsa/ca.crt:ro
-    depends_on:
-      kafka:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
+      - /etc/ssl/events-fsa/ca.crt:/etc/ssl/events-fsa/ca.crt:ro
     networks:
       - backend
     develop:
@@ -142,16 +104,6 @@ services:
           action: rebuild
         - path: ./Dockerfile
           action: rebuild
-
-# Named volume to bind the host's CA cert into the app containers without
-# each app needing to know about the host path layout.
-volumes:
-  ca-cert:
-    driver: local
-    driver_opts:
-      type: none
-      device: /etc/ssl/events-fsa/ca.crt
-      o: bind,ro
 
 networks:
   backend:

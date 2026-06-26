@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import type { SASLOptions } from 'kafkajs';
 
 /**
  * Read a TLS CA bundle from a path and return the PEM contents, or
@@ -70,12 +71,13 @@ export function kafkaSslConfig(env: NodeJS.ProcessEnv = process.env):
  * field is missing, so callers can simply spread it into the client
  * options when defined.
  */
-export function kafkaSaslConfig(env: NodeJS.ProcessEnv = process.env):
-  | { mechanism: string; username: string; password: string }
-  | undefined {
+export function kafkaSaslConfig(env: NodeJS.ProcessEnv = process.env): SASLOptions | undefined {
   const mechanism = env.KAFKA_SASL_MECHANISM;
   const username = env.KAFKA_SASL_USERNAME;
   const password = env.KAFKA_SASL_PASSWORD;
   if (!mechanism || !username || !password) return undefined;
-  return { mechanism, username, password };
+  if (mechanism === 'plain') return { mechanism: 'plain', username, password };
+  if (mechanism === 'scram-sha-256') return { mechanism: 'scram-sha-256', username, password };
+  if (mechanism === 'scram-sha-512') return { mechanism: 'scram-sha-512', username, password };
+  return undefined;
 }
