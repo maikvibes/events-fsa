@@ -1,0 +1,108 @@
+{
+  "name": "events-app",
+  "version": "0.0.1",
+  "description": "",
+  "author": "",
+  "private": true,
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "nest build",
+    "format": "prettier --write \"apps/**/*.ts\" \"libs/**/*.ts\"",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/apps/events-app/main",
+    "start:gateway": "nest start api-gateway --watch",
+    "start:auth": "nest start auth --watch",
+    "start:events": "nest start events --watch",
+    "start:notifications": "nest start notifications --watch",
+    "start:all": "concurrently \"npm run start:gateway\" \"npm run start:auth\" \"npm run start:events\" \"npm run start:notifications\"",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:e2e": "jest --config ./apps/events-app/test/jest-e2e.json",
+    "prisma:generate": "prisma generate --schema=apps/auth/prisma/schema.prisma && prisma generate --schema=apps/events/prisma/schema.prisma && prisma generate --schema=apps/notifications/prisma/schema.prisma",
+    "prisma:migrate:auth": "cd apps/auth && prisma migrate dev",
+    "prisma:migrate:events": "cd apps/events && prisma migrate dev",
+    "prisma:migrate:notifications": "cd apps/notifications && prisma migrate dev",
+    "prisma:migrate:all": "npm run prisma:migrate:auth && npm run prisma:migrate:events && npm run prisma:migrate:notifications",
+    "prisma:migrate:deploy": "cd apps/auth && prisma migrate deploy && cd ../events && prisma migrate deploy && cd ../notifications && prisma migrate deploy",
+    "prisma:studio:auth": "cd apps/auth && prisma studio",
+    "prisma:studio:events": "cd apps/events && prisma studio",
+    "prisma:studio:notifications": "cd apps/notifications && prisma studio",
+    "db:up": "docker compose up postgres redis kafka zookeeper -d",
+    "db:down": "docker compose down",
+    "docker:up": "docker compose up --build -d",
+    "docker:down": "docker compose down -v"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.1",
+    "@nestjs/config": "^4.0.4",
+    "@nestjs/core": "^11.0.1",
+    "@nestjs/microservices": "^11.1.27",
+    "@nestjs/platform-express": "^11.0.1",
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "firebase-admin": "^14.1.0",
+    "kafkajs": "^2.2.4",
+    "nestjs-zod": "^5.4.0",
+    "pg": "^8.22.0",
+    "prisma": "^7.8.0",
+    "redis": "^6.0.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.2.0",
+    "@eslint/js": "^9.18.0",
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/schematics": "^11.0.0",
+    "@nestjs/testing": "^11.0.1",
+    "@types/express": "^5.0.0",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.20.0",
+    "@types/supertest": "^7.0.0",
+    "eslint": "^9.18.0",
+    "eslint-config-prettier": "^10.0.1",
+    "eslint-plugin-prettier": "^5.2.2",
+    "globals": "^17.0.0",
+    "jest": "^30.0.0",
+    "prettier": "^3.4.2",
+    "source-map-support": "^0.5.21",
+    "supertest": "^7.0.0",
+    "ts-jest": "^29.2.5",
+    "ts-loader": "^9.5.2",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.20.0"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": ".",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
+    "coverageDirectory": "./coverage",
+    "testEnvironment": "node",
+    "roots": [
+      "<rootDir>/apps/",
+      "<rootDir>/libs/"
+    ],
+    "moduleNameMapper": {
+      "^@app/shared(|/.*)$": "<rootDir>/libs/shared/src/$1"
+    }
+  }
+}

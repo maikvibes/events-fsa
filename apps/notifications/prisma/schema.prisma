@@ -1,0 +1,44 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma-client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model DeviceToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  platform  Platform
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model NotificationLog {
+  id        String             @id @default(uuid())
+  userId    String
+  eventId   String?
+  title     String
+  body      String
+  status    NotificationStatus
+  messageId String?
+  error     String?
+  createdAt DateTime           @default(now())
+
+  @@index([userId])
+}
+
+enum Platform {
+  ios
+  android
+  web
+}
+
+enum NotificationStatus {
+  sent
+  failed
+}
