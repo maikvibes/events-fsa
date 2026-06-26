@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { RpcException } from '@nestjs/microservices';
 import * as crypto from 'crypto';
+import * as jwt from 'jsonwebtoken';
 import type { RegisterDto, LoginDto, ValidateTokenDto } from '@app/shared';
 import { AuthResponse, TokenPayload, KafkaTopics } from '@app/shared';
 import { PrismaService } from './prisma.service';
@@ -8,8 +10,15 @@ import { PrismaService } from './prisma.service';
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+  private readonly jwtSecret: string;
+  private readonly jwtExpiresIn = '7d';
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly config: ConfigService,
+  ) {
+    this.jwtSecret = this.config.getOrThrow<string>('JWT_SECRET');
+  }
 
   async register(dto: RegisterDto): Promise<AuthResponse> {
     this.logger.log(`Registering: ${dto.email}`);
@@ -37,21 +46,33 @@ export class AuthService {
 
   async validateToken(dto: ValidateTokenDto): Promise<TokenPayload> {
     this.logger.log('Validating token');
-    // TODO: verify JWT with jsonwebtoken + JWT_SECRET from ConfigService
-    return { userId: 'user-id', email: 'user@example.com' };
+    try {
+      const payload = jwt.verify(dto.token, this.jwtSecret) as jwt.JwtPayload;
+      return { userId: payload['userId'] as string, email: payload['email'] as string };
+    } catch {
+      throw new RpcException({ statusCode: 401, message: 'Invalid or expired token' });
+    }
   }
 
-  private hashPassword(password: string): string {
-    // TODO: replace with bcrypt
-    return crypto.createHash('sha256').update(password).digest('hex');
+  private hashPassword(plain: string): string {
+    const salt = crypto.randomBytes(16).toString('hex');
+    const hash = crypto.createHmac('sha256', this.jwtSecret).update(plain + salt).digest('hex');
+    return `${salt}:${hash}`;
   }
 
-  private verifyPassword(plain: string, hashed: string): boolean {
-    return this.hashPassword(plain) === hashed;
+  private verifyPassword(plain: string, stored: string): boolean {
+    if (stored.includes(':')) {
+      // salted HMAC-SHA256
+      const [salt, hash] = stored.split(':', 2);
+      const expected = crypto.createHmac('sha256', this.jwtSecret).update(plain + salt).digest('hex');
+      return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(expected, 'hex'));
+    }
+    // legacy bare SHA256 (no salt)
+    const legacy = crypto.createHash('sha256').update(plain).digest('hex');
+    return legacy === stored;
   }
 
   private signToken(payload: TokenPayload): string {
-    // TODO: sign with JWT_SECRET from ConfigService
-    return Buffer.from(JSON.stringify(payload)).toString('base64');
+    return jwt.sign(payload, this.jwtSecret, { expiresIn: this.jwtExpiresIn });
   }
 }
