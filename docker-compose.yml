@@ -107,5 +107,4 @@ services:
 
 networks:
   backend:
-    name: events-fsa-infra_backend
-    external: true
+    driver: bridge
