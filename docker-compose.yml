@@ -1,15 +1,8 @@
 name: events-fsa
 
-# App services connect to data services (postgres, kafka, redis) on the
-# docker-internal network created by docker-compose.infra.yml.
-# TLS CA cert is bind-mounted read-only from /etc/ssl/events-fsa/ca.crt.
-
-# .env uses relative ./ca.crt paths for host/team use; containers need the
-# absolute mount path instead.
-x-ca-env: &ca-env
-  KAFKA_SSL_CA_PATH: /etc/ssl/events-fsa/ca.crt
-  DATABASE_SSL_CA_PATH: /etc/ssl/events-fsa/ca.crt
-  REDIS_TLS_CA_PATH: /etc/ssl/events-fsa/ca.crt
+# App services connect to remote data services (postgres, kafka, redis) over TLS.
+# Place ca.crt in the project root — it is mounted to /app/ca.crt in each container,
+# matching the relative ./ca.crt paths in .env.
 
 services:
   api-gateway:
@@ -22,10 +15,9 @@ services:
       - "${PORT:-3000}:3000"
     env_file: .env
     environment:
-      <<: *ca-env
       KAFKA_BROKER: ${KAFKA_BROKER:-kafka:29093}
     volumes:
-      - /etc/ssl/events-fsa/ca.crt:/etc/ssl/events-fsa/ca.crt:ro
+      - ./ca.crt:/app/ca.crt:ro
     networks:
       - backend
     develop:
@@ -47,10 +39,9 @@ services:
         SERVICE_NAME: auth
     env_file: .env
     environment:
-      <<: *ca-env
       KAFKA_BROKER: ${KAFKA_BROKER:-kafka:29093}
     volumes:
-      - /etc/ssl/events-fsa/ca.crt:/etc/ssl/events-fsa/ca.crt:ro
+      - ./ca.crt:/app/ca.crt:ro
     networks:
       - backend
     develop:
@@ -72,10 +63,9 @@ services:
         SERVICE_NAME: events
     env_file: .env
     environment:
-      <<: *ca-env
       KAFKA_BROKER: ${KAFKA_BROKER:-kafka:29093}
     volumes:
-      - /etc/ssl/events-fsa/ca.crt:/etc/ssl/events-fsa/ca.crt:ro
+      - ./ca.crt:/app/ca.crt:ro
     networks:
       - backend
     develop:
@@ -97,10 +87,9 @@ services:
         SERVICE_NAME: notifications
     env_file: .env
     environment:
-      <<: *ca-env
       KAFKA_BROKER: ${KAFKA_BROKER:-kafka:29093}
     volumes:
-      - /etc/ssl/events-fsa/ca.crt:/etc/ssl/events-fsa/ca.crt:ro
+      - ./ca.crt:/app/ca.crt:ro
     networks:
       - backend
     develop:
