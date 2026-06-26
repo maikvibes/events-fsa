@@ -9,7 +9,12 @@ COPY package*.json ./
 RUN npm ci
 COPY . .
 ARG SERVICE_NAME
-RUN npx prisma generate --schema=apps/${SERVICE_NAME}/prisma/schema.prisma && \
+RUN if [ -f "apps/${SERVICE_NAME}/prisma/schema.prisma" ]; then \
+      npx prisma generate --schema=apps/${SERVICE_NAME}/prisma/schema.prisma && \
+      cp -r apps/${SERVICE_NAME}/prisma /tmp/prisma-dir; \
+    else \
+      mkdir -p /tmp/prisma-dir; \
+    fi && \
     npx nest build ${SERVICE_NAME}
 
 FROM node:22-alpine AS runner

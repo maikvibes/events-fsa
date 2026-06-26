@@ -1,5 +1,5 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { ClientProxy } from '@nestjs/microservices';
+import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
+import { ClientKafka } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
 import {
   AUTH_SERVICE,
@@ -16,12 +16,33 @@ import {
 } from '@app/shared';
 
 @Injectable()
-export class ApiGatewayService {
+export class ApiGatewayService implements OnModuleInit {
   constructor(
-    @Inject(AUTH_SERVICE) private readonly authClient: ClientProxy,
-    @Inject(EVENTS_SERVICE) private readonly eventsClient: ClientProxy,
-    @Inject(NOTIFICATIONS_SERVICE) private readonly notificationsClient: ClientProxy,
+    @Inject(AUTH_SERVICE) private readonly authClient: ClientKafka,
+    @Inject(EVENTS_SERVICE) private readonly eventsClient: ClientKafka,
+    @Inject(NOTIFICATIONS_SERVICE) private readonly notificationsClient: ClientKafka,
   ) {}
+
+  async onModuleInit() {
+    this.authClient.subscribeToResponseOf(AuthPatterns.REGISTER);
+    this.authClient.subscribeToResponseOf(AuthPatterns.LOGIN);
+    this.authClient.subscribeToResponseOf(AuthPatterns.VALIDATE_TOKEN);
+
+    this.eventsClient.subscribeToResponseOf(EventsPatterns.CREATE);
+    this.eventsClient.subscribeToResponseOf(EventsPatterns.FIND_ALL);
+    this.eventsClient.subscribeToResponseOf(EventsPatterns.FIND_ONE);
+    this.eventsClient.subscribeToResponseOf(EventsPatterns.UPDATE);
+    this.eventsClient.subscribeToResponseOf(EventsPatterns.DELETE);
+
+    this.notificationsClient.subscribeToResponseOf(NotificationsPatterns.SEND);
+    this.notificationsClient.subscribeToResponseOf('notifications.register-token');
+
+    await Promise.all([
+      this.authClient.connect(),
+      this.eventsClient.connect(),
+      this.notificationsClient.connect(),
+    ]);
+  }
 
   register(dto: RegisterDto) {
     return firstValueFrom(this.authClient.send(AuthPatterns.REGISTER, dto));

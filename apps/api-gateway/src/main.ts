@@ -24,14 +24,14 @@ async function bootstrap() {
     .setDescription('API Gateway for the FSA Events microservices platform')
     .setVersion('1.0')
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'bearerAuth')
-    .addServer(`http://localhost:${process.env.PORT ?? 3000}/api/v1`, 'Local')
+    .addServer(`http://localhost:${process.env.PORT ?? 3000}`, 'Local')
     .build();
 
   const document = cleanupOpenApiDoc(SwaggerModule.createDocument(app, swaggerConfig));
 
-  // Static import compiles to CJS require() with module:nodenext.
-  // @scalar/client-side-rendering is ESM-only, so the CJS build fails with ERR_REQUIRE_ESM.
-  // Dynamic import() stays native in nodenext CJS → loads the ESM build → works.
+  // Dynamic import: static import compiles to CJS require() with module:nodenext.
+  // @scalar/client-side-rendering is ESM-only (no CJS export) → ERR_REQUIRE_ESM.
+  // Dynamic import() stays native in nodenext CJS → loads ESM build → works.
   const { apiReference } = await import('@scalar/nestjs-api-reference');
 
   app.use(
