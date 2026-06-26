@@ -1,8 +1,20 @@
 name: events-fsa
 
-# App services connect to remote data services (postgres, kafka, redis) over TLS.
-# Place ca.crt in the project root — it is mounted to /app/ca.crt in each container,
-# matching the relative ./ca.crt paths in .env.
+# App services reach infra (postgres, kafka, redis) via host nginx.
+# ca.crt is placed in the project root and mounted to /app/ca.crt in each
+# container, matching the relative ./ca.crt paths in .env.
+#
+# extra_hosts routes public domain names to the Docker host gateway so the
+# host nginx (listening on 0.0.0.0) proxies to the containers:
+#   db-notif.maik.io.vn:5433  ->  postgres container:5432
+#   cache.maik.io.vn:6380     ->  redis container:6379
+#   nginx.maik.io.vn:9094     ->  kafka EXTERNAL listener (SASL_SSL)
+
+x-host-routes: &host-routes
+  extra_hosts:
+    - "nginx.maik.io.vn:host-gateway"
+    - "db-notif.maik.io.vn:host-gateway"
+    - "cache.maik.io.vn:host-gateway"
 
 services:
   api-gateway:
@@ -12,14 +24,13 @@ services:
       args:
         SERVICE_NAME: api-gateway
     ports:
-      - "${PORT:-3000}:3000"
+      - "${PORT:-3000}:${PORT:-3000}"
     env_file: .env
-    environment:
-      KAFKA_BROKER: ${KAFKA_BROKER:-kafka:29093}
     volumes:
       - ./ca.crt:/app/ca.crt:ro
     networks:
       - backend
+    <<: *host-routes
     develop:
       watch:
         - path: ./apps/api-gateway
@@ -38,12 +49,11 @@ services:
       args:
         SERVICE_NAME: auth
     env_file: .env
-    environment:
-      KAFKA_BROKER: ${KAFKA_BROKER:-kafka:29093}
     volumes:
       - ./ca.crt:/app/ca.crt:ro
     networks:
       - backend
+    <<: *host-routes
     develop:
       watch:
         - path: ./apps/auth
@@ -62,12 +72,11 @@ services:
       args:
         SERVICE_NAME: events
     env_file: .env
-    environment:
-      KAFKA_BROKER: ${KAFKA_BROKER:-kafka:29093}
     volumes:
       - ./ca.crt:/app/ca.crt:ro
     networks:
       - backend
+    <<: *host-routes
     develop:
       watch:
         - path: ./apps/events
@@ -86,12 +95,11 @@ services:
       args:
         SERVICE_NAME: notifications
     env_file: .env
-    environment:
-      KAFKA_BROKER: ${KAFKA_BROKER:-kafka:29093}
     volumes:
       - ./ca.crt:/app/ca.crt:ro
     networks:
       - backend
+    <<: *host-routes
     develop:
       watch:
         - path: ./apps/notifications
