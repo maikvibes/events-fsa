@@ -2,15 +2,13 @@ import { NestFactory } from '@nestjs/core';
 import { MicroserviceOptions, RpcException, Transport } from '@nestjs/microservices';
 import { ValidationPipe } from '@nestjs/common';
 import { NotificationsModule } from './notifications.module';
+import { kafkaBaseClientOptions } from '@app/shared/kafka-config';
 
 async function bootstrap() {
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(NotificationsModule, {
     transport: Transport.KAFKA,
     options: {
-      client: {
-        clientId: 'notifications',
-        brokers: [(process.env.KAFKA_BROKER ?? 'localhost:9092')],
-      },
+      client: kafkaBaseClientOptions('notifications'),
       consumer: {
         groupId: 'notifications-consumer',
       },
