@@ -22,6 +22,9 @@ dist/
 build/
 coverage/
 
+# Prisma generated clients
+apps/*/src/generated/
+
 # OS / editor
 .DS_Store
 Thumbs.db
