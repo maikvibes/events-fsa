@@ -4,6 +4,13 @@ name: events-fsa
 # docker-internal network created by docker-compose.infra.yml.
 # TLS CA cert is bind-mounted read-only from /etc/ssl/events-fsa/ca.crt.
 
+# .env uses relative ./ca.crt paths for host/team use; containers need the
+# absolute mount path instead.
+x-ca-env: &ca-env
+  KAFKA_SSL_CA_PATH: /etc/ssl/events-fsa/ca.crt
+  DATABASE_SSL_CA_PATH: /etc/ssl/events-fsa/ca.crt
+  REDIS_TLS_CA_PATH: /etc/ssl/events-fsa/ca.crt
+
 services:
   api-gateway:
     build:
@@ -15,8 +22,7 @@ services:
       - "${PORT:-3000}:3000"
     env_file: .env
     environment:
-      # The .env KAFKA_BROKER already points at kafka:29093 (the SSL
-      # listener). Override the old PLAINTEXT default explicitly.
+      <<: *ca-env
       KAFKA_BROKER: ${KAFKA_BROKER:-kafka:29093}
     volumes:
       - /etc/ssl/events-fsa/ca.crt:/etc/ssl/events-fsa/ca.crt:ro
@@ -41,6 +47,7 @@ services:
         SERVICE_NAME: auth
     env_file: .env
     environment:
+      <<: *ca-env
       KAFKA_BROKER: ${KAFKA_BROKER:-kafka:29093}
     volumes:
       - /etc/ssl/events-fsa/ca.crt:/etc/ssl/events-fsa/ca.crt:ro
@@ -65,6 +72,7 @@ services:
         SERVICE_NAME: events
     env_file: .env
     environment:
+      <<: *ca-env
       KAFKA_BROKER: ${KAFKA_BROKER:-kafka:29093}
     volumes:
       - /etc/ssl/events-fsa/ca.crt:/etc/ssl/events-fsa/ca.crt:ro
@@ -89,6 +97,7 @@ services:
         SERVICE_NAME: notifications
     env_file: .env
     environment:
+      <<: *ca-env
       KAFKA_BROKER: ${KAFKA_BROKER:-kafka:29093}
     volumes:
       - /etc/ssl/events-fsa/ca.crt:/etc/ssl/events-fsa/ca.crt:ro
