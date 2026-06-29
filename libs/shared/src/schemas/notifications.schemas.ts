@@ -22,6 +22,13 @@ export const RegisterDeviceTokenSchema = z.object({
   platform: z.enum(['ios', 'android', 'web']),
 });
 
+export const BroadcastSchema = z.object({
+  title: z.string().min(1).max(100),
+  body: z.string().min(1).max(500),
+  data: z.record(z.string(), z.string()).optional(),
+});
+
 export type SendNotificationDto = z.infer<typeof SendNotificationSchema>;
 export type SendMulticastDto = z.infer<typeof SendMulticastSchema>;
 export type RegisterDeviceTokenDto = z.infer<typeof RegisterDeviceTokenSchema>;
+export type BroadcastDto = z.infer<typeof BroadcastSchema>;
