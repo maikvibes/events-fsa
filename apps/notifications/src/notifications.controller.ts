@@ -2,7 +2,7 @@ import { Controller } from '@nestjs/common';
 import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
 import { NotificationsService } from './notifications.service';
 import { NotificationsPatterns, KafkaTopics } from '@app/shared';
-import type { SendNotificationDto, EventCreatedEvent } from '@app/shared';
+import type { SendNotificationDto, SendMulticastDto, EventCreatedEvent, BroadcastDto } from '@app/shared';
 import type { Platform } from './generated/prisma-client';
 
 interface RegisterDeviceTokenDto {
@@ -18,6 +18,16 @@ export class NotificationsController {
   @MessagePattern(NotificationsPatterns.SEND)
   send(@Payload() dto: SendNotificationDto) {
     return this.notificationsService.send(dto);
+  }
+
+  @MessagePattern(NotificationsPatterns.MULTICAST)
+  sendMulticast(@Payload() dto: SendMulticastDto) {
+    return this.notificationsService.sendMulticast(dto);
+  }
+  
+  @MessagePattern(NotificationsPatterns.BROADCAST)
+  sendBroadcast(@Payload() dto : BroadcastDto){
+    return this.notificationsService.broadcast(dto)
   }
 
   @MessagePattern('notifications.register-token')
