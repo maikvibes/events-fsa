@@ -85,7 +85,7 @@ export default function (data) {
     'create event: has eventId': (r) => {
       try {
         const b = r.json();
-        return !!(b?.data?.id ?? b?.id);
+        return !!(b?.data?.eventId ?? b?.eventId);
       } catch {
         return false;
       }
@@ -99,7 +99,7 @@ export default function (data) {
   }
 
   const eventBody = createRes.json();
-  const eventId = eventBody?.data?.id ?? eventBody?.id;
+  const eventId = eventBody?.data?.eventId ?? eventBody?.eventId;
 
   sleep(0.1);
 
@@ -112,7 +112,7 @@ export default function (data) {
     'read event: correct id': (r) => {
       try {
         const b = r.json();
-        return (b?.data?.id ?? b?.id) === eventId;
+        return (b?.data?.eventId ?? b?.eventId) === eventId;
       } catch {
         return false;
       }
@@ -126,9 +126,11 @@ export default function (data) {
   const cacheRes = http.get(`${BASE_URL}/events/${eventId}`, { headers });
   cacheHitDuration.add(cacheRes.timings.duration);
 
+  // We don't compare cacheRes vs readRes per-iteration — two single live
+  // samples flap badly under load. Cache effectiveness is judged in aggregate
+  // via the events_cache_hit_duration threshold (p95<300ms) instead.
   check(cacheRes, {
     'cache hit: status 200': (r) => r.status === 200,
-    'cache hit: faster than cold read': () => cacheRes.timings.duration < readRes.timings.duration + 500,
   });
 
   sleep(0.1);

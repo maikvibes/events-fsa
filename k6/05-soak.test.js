@@ -71,7 +71,7 @@ export default function (data) {
   const eventId = (() => {
     try {
       const b = createRes.json();
-      return b?.data?.id ?? b?.id;
+      return b?.data?.eventId ?? b?.eventId;
     } catch {
       return null;
     }
