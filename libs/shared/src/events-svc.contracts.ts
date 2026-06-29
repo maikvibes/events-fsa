@@ -8,6 +8,7 @@ export const EventsPatterns = {
 
 export const NotificationsPatterns = {
   SEND: 'notifications.send',
+  MULTICAST: 'notifications.multicast',
 } as const;
 
 export interface EventDto {

@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { ConfigService } from '@nestjs/config';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getMessaging } from 'firebase-admin/messaging';
+import { getMessaging, type BatchResponse } from 'firebase-admin/messaging';
 import {
   SendNotificationDto,
   NotificationResult,
@@ -11,6 +11,7 @@ import {
   NotificationSentEvent,
   NotificationFailedEvent,
   NOTIFICATIONS_KAFKA_PRODUCER,
+  SendMulticastDto,
 } from '@app/shared';
 import { PrismaService } from './prisma.service';
 import { NotificationStatus, Platform } from './generated/prisma-client';
@@ -101,6 +102,53 @@ export class NotificationsService implements OnModuleInit {
       this.logger.error(`FCM failed for user ${dto.userId}: ${error}`);
       return { success: false, error };
     }
+  }
+
+  async sendMulticast(dto: SendMulticastDto): Promise<{ sent: number; failed: number }> {
+    const { tokens, title, body, data } = dto;
+    if (!tokens.length) return { sent: 0, failed: 0 };
+
+    let sent = 0;
+    const deadTokens: string[] = [];
+
+    for (let i = 0; i < tokens.length; i += 500) {
+      const chunk = tokens.slice(i, i + 500);
+      const res: BatchResponse = await (
+        getMessaging().sendEachForMulticast as (m: {
+          tokens: string[];
+          notification: { title: string; body: string };
+          data?: Record<string, string>;
+          android: { priority: 'high' };
+          apns: object;
+        }) => Promise<BatchResponse>
+      )({
+        tokens: chunk,
+        notification: { title, body },
+        data,
+        android: { priority: 'high' },
+        apns: { payload: { aps: { alert: { title, body }, sound: 'default' } } },
+      });
+
+      sent += res.successCount;
+      res.responses.forEach((r, idx) => {
+        if (
+          !r.success &&
+          (r.error?.code === 'messaging/registration-token-not-registered' ||
+            r.error?.code === 'messaging/invalid-registration-token')
+        ) {
+          deadTokens.push(chunk[idx]);
+        }
+      });
+    }
+
+    if (deadTokens.length) {
+      await this.prisma.deviceToken.deleteMany({ where: { token: { in: deadTokens } } });
+      this.logger.warn(`Removed ${deadTokens.length} dead device tokens`);
+    }
+
+    const failed = tokens.length - sent;
+    this.logger.log(`FCM multicast: ${sent}/${tokens.length} sent`);
+    return { sent, failed };
   }
 
   async registerDeviceToken(userId: string, token: string, platform: Platform): Promise<void> {
