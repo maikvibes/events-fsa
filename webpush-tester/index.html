@@ -48,12 +48,9 @@
       pushes appear in the phone's notification tray.)
     </div>
 
-    <!-- Firebase compat SDK (simplest cross-context setup with the service worker) -->
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js"></script>
     <script>
-      // Public web-client config for test-836e1, pulled from the Firebase
-      // Management API. These values are NOT secrets (web API keys are public).
       const firebaseConfig = {
         apiKey: 'AIzaSyBM1lvq73MR0EH95LaP1MTh1pouUZ9UCo8',
         authDomain: 'test-836e1.firebaseapp.com',
@@ -90,7 +87,6 @@
           const swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
 
           setStatus('Fetching FCM token…', 'info');
-          // No vapidKey passed → the SDK uses its built-in default key.
           const token = await messaging.getToken({ serviceWorkerRegistration: swReg });
 
           if (!token) {
@@ -118,7 +114,6 @@
         }
       });
 
-      // Foreground messages (tab focused).
       messaging.onMessage((payload) => {
         console.log('Foreground message:', payload);
         const n = payload.notification || {};

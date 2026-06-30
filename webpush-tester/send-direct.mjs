@@ -1,13 +1,3 @@
-// Direct FCM sender — bypasses the whole microservices stack.
-// Uses the .env service account + firebase-admin to push straight to a token.
-// Works regardless of whether Kafka/Postgres/Redis are up.
-//
-// Usage:
-//   node webpush-tester/send-direct.mjs <DEVICE_TOKEN>
-//   node webpush-tester/send-direct.mjs <DEVICE_TOKEN> "Custom title" "Custom body"
-//
-// The token comes from the tester page (index.html), opened either on your
-// phone (via the HTTPS tunnel) or on this PC at http://localhost:8080.
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getMessaging } from 'firebase-admin/messaging';
 import { readFileSync } from 'node:fs';
@@ -23,7 +13,6 @@ if (!token) {
   exit(1);
 }
 
-// Read the three FIREBASE_* values from .env (handles the quoted private key).
 const raw = readFileSync('.env', 'utf8');
 function getVar(name) {
   const m = raw.match(new RegExp(`^${name}=("?)([\\s\\S]*?)\\1\\s*$`, 'm'));
@@ -50,9 +39,7 @@ try {
     token,
     notification: { title, body },
     data: { source: 'send-direct', ts: String(Date.now()) },
-    // Native Android: high priority so it wakes the device and shows promptly.
     android: { priority: 'high', notification: { title, body } },
-    // Web (desktop/mobile Chrome) rendering options.
     webpush: {
       notification: { title, body, icon: '/favicon.ico' },
       fcmOptions: {},

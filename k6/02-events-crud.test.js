@@ -1,20 +1,3 @@
-/**
- * Events CRUD load test — simulates authenticated users creating, reading,
- * updating, and deleting events at realistic read/write ratios (70/30).
- *
- * Flow per VU iteration:
- *   1. POST /events          → create
- *   2. GET  /events/:id      → fetch single (cache miss first time)
- *   3. GET  /events/:id      → fetch single again (should hit Redis cache)
- *   4. PUT  /events/:id      → update (invalidates cache)
- *   5. GET  /events/me       → list user events
- *   6. DELETE /events/:id    → delete
- *
- * This stresses:
- *   - Kafka RPC round-trips (api-gateway → events-svc)
- *   - Redis cache hit/miss ratio
- *   - PostgreSQL write throughput
- */
 import http from 'k6/http';
 import { check, sleep, fail } from 'k6';
 import { Trend, Rate } from 'k6/metrics';
@@ -55,7 +38,6 @@ export const options = {
 };
 
 export function setup() {
-  // Create a pool of 10 users to share across VUs.
   const users = [];
   for (let i = 0; i < 10; i++) {
     users.push(createUser(`crud-${i}`));
@@ -68,7 +50,6 @@ export default function (data) {
   const headers = authHeaders(user.token);
   let allOk = true;
 
-  // --- CREATE ---
   const createRes = http.post(
     `${BASE_URL}/events`,
     JSON.stringify({
@@ -103,7 +84,6 @@ export default function (data) {
 
   sleep(0.1);
 
-  // --- READ (cache miss — first fetch after create) ---
   const readRes = http.get(`${BASE_URL}/events/${eventId}`, { headers });
   readDuration.add(readRes.timings.duration);
 
@@ -122,20 +102,15 @@ export default function (data) {
 
   sleep(0.05);
 
-  // --- READ AGAIN (cache hit — Redis TTL is 30 min) ---
   const cacheRes = http.get(`${BASE_URL}/events/${eventId}`, { headers });
   cacheHitDuration.add(cacheRes.timings.duration);
 
-  // We don't compare cacheRes vs readRes per-iteration — two single live
-  // samples flap badly under load. Cache effectiveness is judged in aggregate
-  // via the events_cache_hit_duration threshold (p95<300ms) instead.
   check(cacheRes, {
     'cache hit: status 200': (r) => r.status === 200,
   });
 
   sleep(0.1);
 
-  // --- UPDATE ---
   const updateRes = http.put(
     `${BASE_URL}/events/${eventId}`,
     JSON.stringify({ title: `Updated ${randomString(6)}`, date: randomFutureDate(60) }),
@@ -147,7 +122,6 @@ export default function (data) {
 
   sleep(0.1);
 
-  // --- LIST USER EVENTS ---
   const listRes = http.get(`${BASE_URL}/events/me`, { headers });
   listDuration.add(listRes.timings.duration);
 
@@ -165,7 +139,6 @@ export default function (data) {
 
   sleep(0.1);
 
-  // --- DELETE ---
   const deleteRes = http.del(`${BASE_URL}/events/${eventId}`, null, { headers });
   deleteDuration.add(deleteRes.timings.duration);
 

@@ -1,13 +1,3 @@
-/**
- * Stress / boundary test — finds the breaking point of the system.
- *
- * Ramps VUs until thresholds breach or the system starts returning errors.
- * Useful for establishing the actual ceiling before applying horizontal scaling.
- *
- * Stages: keep ramping until p99 latency > 10s or error rate > 5%.
- * The test does NOT abort early — let it run to completion and read the
- * threshold summary to find which stage the system degraded.
- */
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Trend, Rate, Counter } from 'k6/metrics';
@@ -30,15 +20,12 @@ export const options = {
         { duration: '2m', target: 800 },
         { duration: '2m', target: 1000 },
         { duration: '2m', target: 1500 },
-        // Cool-down — verifies recovery, not just failure.
         { duration: '2m', target: 100 },
         { duration: '1m', target: 0 },
       ],
     },
   },
   thresholds: {
-    // These are intentionally soft — the goal is to OBSERVE the breaking point,
-    // not prevent the test from running to the end.
     stress_req_duration: ['p(95)<10000'],
     stress_error_rate: ['rate<0.10'],
     http_req_failed: ['rate<0.10'],
@@ -57,9 +44,6 @@ export default function (data) {
   const user = data.users[__VU % data.users.length];
   const headers = authHeaders(user.token);
 
-  // Alternate between the two most expensive operations:
-  // - Event create (Postgres write + Kafka RPC + Kafka publish to notifications)
-  // - Event list (Redis cache lookup + Postgres fallback)
   const writeHeavy = __ITER % 3 !== 0;
 
   let res;
@@ -86,7 +70,6 @@ export default function (data) {
 
   if (res.status >= 500) stress5xx.add(1);
 
-  // Detect Kafka RPC timeouts — gateway returns 504 or body contains "timeout".
   if (res.status === 504 || (res.body && res.body.includes('timeout'))) {
     kafkaTimeouts.add(1);
   }

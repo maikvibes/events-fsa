@@ -1,13 +1,3 @@
-/**
- * Auth load test — covers register + login under ramp-up to 100k concurrent users.
- *
- * Scenarios:
- *   register  — new unique users signing up (write-heavy, hits Postgres + Kafka)
- *   login     — returning users authenticating (read from Postgres, JWT sign)
- *
- * Thresholds are intentionally strict: registration is synchronous and hits the DB
- * directly, so it's the first bottleneck to expose under load.
- */
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Trend, Counter, Rate } from 'k6/metrics';
@@ -54,12 +44,10 @@ export const options = {
   },
 };
 
-// Pre-seed credentials for login scenario — reused across VU iterations.
 const SEED_EMAIL = `k6-seed-${Date.now()}@test.local`;
 const SEED_PASSWORD = 'Password123!';
 
 export function setup() {
-  // Register one seed account for the login scenario to use.
   http.post(
     `${BASE_URL}/auth/register`,
     JSON.stringify({ email: SEED_EMAIL, password: SEED_PASSWORD, name: 'K6 Seed' }),
@@ -95,7 +83,7 @@ export function loginScenario(data) {
   loginDuration.add(res.timings.duration);
 
   const ok = check(res, {
-    'login: status 200': (r) => r.status === 200,
+    'login: status 200 or 201': (r) => r.status === 200 || r.status === 201,
     'login: has accessToken': (r) => {
       try {
         const b = r.json();

@@ -1,6 +1,3 @@
-// Minimal static file server for the web push tester.
-// Serves this folder on http://localhost:8080 (override with PORT).
-// No dependencies — uses only Node's stdlib. Run: node webpush-tester/serve.mjs
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { join, extname, normalize } from 'node:path';
@@ -23,7 +20,6 @@ const server = createServer(async (req, res) => {
     let urlPath = decodeURIComponent(new URL(req.url, 'http://x').pathname);
     if (urlPath === '/') urlPath = '/index.html';
 
-    // Prevent path traversal — resolve and ensure it stays under ROOT.
     const filePath = normalize(join(ROOT, urlPath));
     if (!filePath.startsWith(ROOT)) {
       res.writeHead(403).end('Forbidden');
@@ -39,7 +35,6 @@ const server = createServer(async (req, res) => {
     const body = await readFile(filePath);
     const headers = { 'Content-Type': MIME[extname(filePath)] || 'application/octet-stream' };
 
-    // Service workers must be served with a JS content type and broad scope.
     if (filePath.endsWith('firebase-messaging-sw.js')) {
       headers['Service-Worker-Allowed'] = '/';
       headers['Cache-Control'] = 'no-cache';

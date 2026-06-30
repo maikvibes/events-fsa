@@ -1,16 +1,3 @@
-/**
- * Notifications load test — covers device token registration and notification dispatch.
- *
- * Scenarios:
- *   token_registration  — users registering device tokens on login (common mobile pattern)
- *   send_notification   — admin/system sending push notifications to users
- *
- * This stresses:
- *   - Redis device token cache (24h TTL)
- *   - Postgres notifications_db write throughput
- *   - Kafka async fan-out when event.created triggers notifications
- *   - FCM external API (will fail in test env — we check for graceful error handling)
- */
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Trend, Rate, Counter } from 'k6/metrics';
@@ -72,7 +59,6 @@ export function tokenRegistrationScenario(data) {
   const user = data.users[__VU % data.users.length];
   const headers = authHeaders(user.token);
 
-  // Simulate a device registering its push token (e.g., on app launch).
   const fakeToken = `device-token-${randomString(32)}`;
   const platform = PLATFORMS[Math.floor(Math.random() * PLATFORMS.length)];
 
@@ -98,7 +84,6 @@ export function sendNotificationScenario(data) {
   const user = data.users[__VU % data.users.length];
   const headers = authHeaders(user.token);
 
-  // In test env, FCM will fail but the API should still accept and queue the request.
   const fakeDeviceToken = `device-token-${randomString(32)}`;
 
   const res = http.post(
@@ -115,7 +100,6 @@ export function sendNotificationScenario(data) {
 
   sendDuration.add(res.timings.duration);
 
-  // 201 = queued & sent; 5xx = FCM failure or service error
   const accepted = check(res, {
     'send notification: accepted (201 or 202)': (r) => r.status === 201 || r.status === 202,
     'send notification: not 5xx': (r) => r.status < 500,
