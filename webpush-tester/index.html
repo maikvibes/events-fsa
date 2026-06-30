@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FCM Web Push Tester — events-fsa</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        max-width: 640px; margin: 0 auto; padding: 1.5rem; line-height: 1.5;
+      }
+      h1 { font-size: 1.3rem; }
+      button {
+        font-size: 1rem; padding: 0.7rem 1.1rem; border-radius: 8px;
+        border: 1px solid #888; cursor: pointer; margin: 0.3rem 0;
+      }
+      #token {
+        width: 100%; min-height: 7rem; font-family: ui-monospace, monospace;
+        font-size: 0.8rem; word-break: break-all; padding: 0.6rem; box-sizing: border-box;
+      }
+      .status { padding: 0.6rem 0.8rem; border-radius: 8px; margin: 0.6rem 0; }
+      .ok { background: #1f7a1f22; border: 1px solid #1f7a1f; }
+      .err { background: #b0202022; border: 1px solid #b02020; }
+      .info { background: #2060a022; border: 1px solid #2060a0; }
+      .muted { color: #888; font-size: 0.85rem; }
+      ol { padding-left: 1.2rem; }
+    </style>
+  </head>
+  <body>
+    <h1>FCM Web Push Tester</h1>
+    <p class="muted">
+      Project <code>test-836e1</code>. Open this page in your phone's Chrome over
+      the HTTPS tunnel URL, tap <strong>Enable</strong>, allow notifications, then
+      copy the token below and register it with the backend.
+    </p>
+
+    <button id="enable">Enable notifications &amp; get token</button>
+    <div id="status" class="status info">Idle. Tap the button to begin.</div>
+
+    <label for="token"><strong>Your FCM device token</strong></label>
+    <textarea id="token" readonly placeholder="Token will appear here…"></textarea>
+    <button id="copy" disabled>Copy token</button>
+
+    <h2 style="font-size: 1rem">Foreground messages</h2>
+    <div id="messages" class="muted">
+      (If a push arrives while this tab is focused, it shows here. Background
+      pushes appear in the phone's notification tray.)
+    </div>
+
+    <!-- Firebase compat SDK (simplest cross-context setup with the service worker) -->
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js"></script>
+    <script>
+      // Public web-client config for test-836e1, pulled from the Firebase
+      // Management API. These values are NOT secrets (web API keys are public).
+      const firebaseConfig = {
+        apiKey: 'AIzaSyBM1lvq73MR0EH95LaP1MTh1pouUZ9UCo8',
+        authDomain: 'test-836e1.firebaseapp.com',
+        projectId: 'test-836e1',
+        storageBucket: 'test-836e1.firebasestorage.app',
+        messagingSenderId: '916952965378',
+        appId: '1:916952965378:web:f28bd80ed4471fbf58621b',
+        measurementId: 'G-9BL3BSZ5T5',
+      };
+
+      firebase.initializeApp(firebaseConfig);
+      const messaging = firebase.messaging();
+
+      const statusEl = document.getElementById('status');
+      const tokenEl = document.getElementById('token');
+      const copyBtn = document.getElementById('copy');
+      const messagesEl = document.getElementById('messages');
+
+      function setStatus(msg, kind) {
+        statusEl.textContent = msg;
+        statusEl.className = 'status ' + (kind || 'info');
+      }
+
+      document.getElementById('enable').addEventListener('click', async () => {
+        try {
+          setStatus('Requesting notification permission…', 'info');
+          const permission = await Notification.requestPermission();
+          if (permission !== 'granted') {
+            setStatus('Permission denied. Allow notifications and retry.', 'err');
+            return;
+          }
+
+          setStatus('Registering service worker…', 'info');
+          const swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+
+          setStatus('Fetching FCM token…', 'info');
+          // No vapidKey passed → the SDK uses its built-in default key.
+          const token = await messaging.getToken({ serviceWorkerRegistration: swReg });
+
+          if (!token) {
+            setStatus('No token returned. Check console for errors.', 'err');
+            return;
+          }
+
+          tokenEl.value = token;
+          copyBtn.disabled = false;
+          setStatus('Token acquired! Copy it and register with the backend.', 'ok');
+        } catch (err) {
+          console.error(err);
+          setStatus('Error: ' + (err && err.message ? err.message : err), 'err');
+        }
+      });
+
+      copyBtn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(tokenEl.value);
+          setStatus('Token copied to clipboard.', 'ok');
+        } catch {
+          tokenEl.select();
+          document.execCommand('copy');
+          setStatus('Token selected — copy manually if needed.', 'info');
+        }
+      });
+
+      // Foreground messages (tab focused).
+      messaging.onMessage((payload) => {
+        console.log('Foreground message:', payload);
+        const n = payload.notification || {};
+        messagesEl.innerHTML =
+          '<div class="status ok"><strong>' +
+          (n.title || '(no title)') + '</strong><br>' + (n.body || '') + '</div>';
+      });
+    </script>
+  </body>
+</html>
