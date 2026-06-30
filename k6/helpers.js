@@ -44,6 +44,14 @@ export function authHeaders(token) {
   };
 }
 
+export function registerToken(token, userId, deviceToken, platform = 'web') {
+  return http.post(
+    `${BASE_URL}/notifications/register-token`,
+    JSON.stringify({ userId, token: deviceToken, platform }),
+    { headers: authHeaders(token) },
+  );
+}
+
 /**
  * Register a brand-new user and return their credentials + JWT.
  *
