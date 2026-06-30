@@ -3,54 +3,140 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>FCM Web Push Tester — events-fsa</title>
+    <title>Notification Console — events-fsa</title>
     <style>
       :root { color-scheme: light dark; }
       body {
         font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-        max-width: 640px; margin: 0 auto; padding: 1.5rem; line-height: 1.5;
+        max-width: 680px; margin: 0 auto; padding: 1.25rem; line-height: 1.5;
       }
-      h1 { font-size: 1.3rem; }
+      h1 { font-size: 1.3rem; margin-bottom: 0.25rem; }
+      h2 { font-size: 1rem; margin: 0 0 0.6rem; }
+      section {
+        border: 1px solid #8884; border-radius: 10px;
+        padding: 0.9rem 1rem; margin: 0.9rem 0;
+      }
+      section[data-locked] { opacity: 0.55; }
+      label { display: block; font-size: 0.85rem; margin: 0.5rem 0 0.15rem; }
+      input, textarea {
+        width: 100%; box-sizing: border-box; padding: 0.5rem;
+        font-size: 0.95rem; border-radius: 6px; border: 1px solid #888;
+        font-family: inherit;
+      }
+      textarea { min-height: 3.5rem; }
+      #token { font-family: ui-monospace, monospace; font-size: 0.75rem; word-break: break-all; }
       button {
-        font-size: 1rem; padding: 0.7rem 1.1rem; border-radius: 8px;
-        border: 1px solid #888; cursor: pointer; margin: 0.3rem 0;
+        font-size: 0.95rem; padding: 0.55rem 1rem; border-radius: 8px;
+        border: 1px solid #888; cursor: pointer; margin: 0.6rem 0 0;
       }
-      #token {
-        width: 100%; min-height: 7rem; font-family: ui-monospace, monospace;
-        font-size: 0.8rem; word-break: break-all; padding: 0.6rem; box-sizing: border-box;
-      }
-      .status { padding: 0.6rem 0.8rem; border-radius: 8px; margin: 0.6rem 0; }
+      button:disabled { cursor: not-allowed; opacity: 0.5; }
+      .row { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+      .row > * { flex: 1; min-width: 9rem; }
+      .status { padding: 0.45rem 0.7rem; border-radius: 8px; margin: 0.6rem 0 0; font-size: 0.9rem; }
       .ok { background: #1f7a1f22; border: 1px solid #1f7a1f; }
       .err { background: #b0202022; border: 1px solid #b02020; }
       .info { background: #2060a022; border: 1px solid #2060a0; }
       .muted { color: #888; font-size: 0.85rem; }
-      ol { padding-left: 1.2rem; }
+      #log {
+        font-family: ui-monospace, monospace; font-size: 0.78rem;
+        white-space: pre-wrap; word-break: break-word;
+        max-height: 18rem; overflow-y: auto; margin: 0;
+      }
+      #log .log-ok { color: #2f9e2f; }
+      #log .log-err { color: #d05050; }
+      #log .log-meta { color: #888; }
+      #whoami { font-size: 0.85rem; }
     </style>
   </head>
   <body>
-    <h1>FCM Web Push Tester</h1>
+    <h1>Notification Console</h1>
     <p class="muted">
-      Project <code>test-836e1</code>. Open this page in your phone's Chrome over
-      the HTTPS tunnel URL, tap <strong>Enable</strong>, allow notifications, then
-      copy the token below and register it with the backend.
+      Drives the events-fsa pipeline end to end. Firebase project
+      <code>test-836e1</code>. Pushes land in the OS tray of whatever device
+      opens this page (PC over <code>localhost</code>, phone over an HTTPS tunnel).
     </p>
 
-    <button id="enable">Enable notifications &amp; get token</button>
-    <div id="status" class="status info">Idle. Tap the button to begin.</div>
+    <!-- 1. AUTH -->
+    <section id="sec-auth">
+      <h2>1 · Account</h2>
+      <div id="whoami" class="muted">Not logged in.</div>
+      <div class="row">
+        <div>
+          <label for="reg-name">Name (register)</label>
+          <input id="reg-name" placeholder="Ada Lovelace" autocomplete="name" />
+        </div>
+      </div>
+      <label for="auth-email">Email</label>
+      <input id="auth-email" type="email" placeholder="you@example.com" autocomplete="email" />
+      <label for="auth-password">Password (≥ 8 chars to register)</label>
+      <input id="auth-password" type="password" placeholder="••••••••" autocomplete="current-password" />
+      <div class="row">
+        <button id="btn-register" type="button">Register</button>
+        <button id="btn-login" type="button">Login</button>
+        <button id="btn-logout" type="button" disabled>Logout</button>
+      </div>
+      <div id="auth-status" class="status info">Register a new account or log in to begin.</div>
+    </section>
 
-    <label for="token"><strong>Your FCM device token</strong></label>
-    <textarea id="token" readonly placeholder="Token will appear here…"></textarea>
-    <button id="copy" disabled>Copy token</button>
+    <!-- 2. REGISTER DEVICE -->
+    <section id="sec-device" data-locked>
+      <h2>2 · Register this device for push</h2>
+      <p class="muted">
+        Requests notification permission, grabs an FCM token, and registers it
+        to your account automatically. Do this on the device you want the tray
+        notification on.
+      </p>
+      <button id="btn-enable" type="button" disabled>Enable notifications &amp; register</button>
+      <div id="device-status" class="status info">Log in first.</div>
+      <label for="token">FCM device token</label>
+      <textarea id="token" readonly placeholder="Token will appear here after registering…"></textarea>
+    </section>
 
-    <h2 style="font-size: 1rem">Foreground messages</h2>
-    <div id="messages" class="muted">
-      (If a push arrives while this tab is focused, it shows here. Background
-      pushes appear in the phone's notification tray.)
-    </div>
+    <!-- 3. SEND NOTIFICATION -->
+    <section id="sec-send" data-locked>
+      <h2>3 · Send a notification</h2>
+      <label for="send-userid">Target user ID <span class="muted">(defaults to you)</span></label>
+      <input id="send-userid" placeholder="defaults to logged-in user" />
+      <label for="send-devicetoken">Device token <span class="muted">(defaults to this device)</span></label>
+      <textarea id="send-devicetoken" placeholder="defaults to the token from step 2" style="min-height:2.5rem; font-family: ui-monospace, monospace; font-size: 0.72rem;"></textarea>
+      <label for="send-title">Title</label>
+      <input id="send-title" maxlength="100" value="Hello from the console" />
+      <label for="send-body">Body</label>
+      <textarea id="send-body" maxlength="500">This push was fired straight from the notification console.</textarea>
+      <button id="btn-send" type="button" disabled>Send notification</button>
+    </section>
+
+    <!-- 4. CREATE EVENT -->
+    <section id="sec-event" data-locked>
+      <h2>4 · Create an event (full fan-out)</h2>
+      <p class="muted">
+        Creates an event for your account, triggering the Kafka fan-out that
+        pushes to <em>all</em> your registered devices.
+      </p>
+      <label for="event-title">Title</label>
+      <input id="event-title" maxlength="200" value="Team standup" />
+      <label for="event-description">Description</label>
+      <textarea id="event-description" maxlength="2000">Daily sync at the usual spot.</textarea>
+      <label for="event-date">Date &amp; time (must be in the future)</label>
+      <input id="event-date" type="datetime-local" />
+      <button id="btn-event" type="button" disabled>Create event</button>
+    </section>
+
+    <!-- 5. LOG -->
+    <section id="sec-log">
+      <h2>5 · Result log</h2>
+      <button id="btn-clear" type="button">Clear</button>
+      <pre id="log"></pre>
+    </section>
 
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js"></script>
     <script>
+      // ---- config ----
+      // Gateway base. If you open this page over an HTTPS tunnel on a phone, the
+      // gateway must also be reachable from that device — point this at the
+      // tunnelled/LAN gateway URL instead of localhost.
+      const API_BASE = 'http://localhost:3000/api/v1';
       const firebaseConfig = {
         apiKey: 'AIzaSyBM1lvq73MR0EH95LaP1MTh1pouUZ9UCo8',
         authDomain: 'test-836e1.firebaseapp.com',
@@ -60,67 +146,216 @@
         appId: '1:916952965378:web:f28bd80ed4471fbf58621b',
         measurementId: 'G-9BL3BSZ5T5',
       };
-
       firebase.initializeApp(firebaseConfig);
       const messaging = firebase.messaging();
 
-      const statusEl = document.getElementById('status');
-      const tokenEl = document.getElementById('token');
-      const copyBtn = document.getElementById('copy');
-      const messagesEl = document.getElementById('messages');
+      // ---- session state (in memory only) ----
+      const session = { accessToken: null, userId: null, email: null, deviceToken: null };
 
-      function setStatus(msg, kind) {
-        statusEl.textContent = msg;
-        statusEl.className = 'status ' + (kind || 'info');
+      // ---- elements ----
+      const $ = (id) => document.getElementById(id);
+      const logEl = $('log');
+
+      // ---- logging ----
+      function log(kind, label, detail) {
+        const t = new Date().toLocaleTimeString();
+        const line = document.createElement('div');
+        line.innerHTML =
+          `<span class="log-meta">[${t}]</span> ` +
+          `<span class="log-${kind === 'err' ? 'err' : 'ok'}">${label}</span>` +
+          (detail ? ` <span class="log-meta">${detail}</span>` : '');
+        logEl.appendChild(line);
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+      function esc(v) {
+        return String(v).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
       }
 
-      document.getElementById('enable').addEventListener('click', async () => {
+      // ---- single fetch helper: injects auth, unwraps {success,data}, throws on error ----
+      async function api(method, path, body, { auth = true } = {}) {
+        const headers = { 'Content-Type': 'application/json' };
+        if (auth && session.accessToken) headers.Authorization = `Bearer ${session.accessToken}`;
+        let res, json;
         try {
-          setStatus('Requesting notification permission…', 'info');
-          const permission = await Notification.requestPermission();
-          if (permission !== 'granted') {
-            setStatus('Permission denied. Allow notifications and retry.', 'err');
-            return;
-          }
+          res = await fetch(API_BASE + path, {
+            method,
+            headers,
+            body: body ? JSON.stringify(body) : undefined,
+          });
+        } catch (e) {
+          throw new Error(`network error reaching ${API_BASE}${path}: ${e.message}`);
+        }
+        const text = await res.text();
+        try { json = text ? JSON.parse(text) : {}; } catch { json = { raw: text }; }
+        if (!res.ok) {
+          const msg = json.message || json.error || res.statusText || `HTTP ${res.status}`;
+          throw new Error(Array.isArray(msg) ? msg.join('; ') : msg);
+        }
+        return 'data' in json ? json.data : json;
+      }
 
-          setStatus('Registering service worker…', 'info');
+      // ---- UI lock/unlock ----
+      function setLoggedIn(on) {
+        for (const sec of ['sec-device', 'sec-send', 'sec-event']) {
+          if (on) $(sec).removeAttribute('data-locked');
+          else $(sec).setAttribute('data-locked', '');
+        }
+        $('btn-logout').disabled = !on;
+        $('btn-enable').disabled = !on;
+        $('btn-send').disabled = !on;
+        $('btn-event').disabled = !on;
+        if (on) {
+          $('whoami').textContent = `Logged in as ${session.email} (${session.userId})`;
+          $('device-status').textContent = 'Ready. Tap enable to register this device.';
+          $('device-status').className = 'status info';
+        } else {
+          $('whoami').textContent = 'Not logged in.';
+        }
+      }
+      function authStatus(msg, kind) {
+        $('auth-status').textContent = msg;
+        $('auth-status').className = 'status ' + (kind || 'info');
+      }
+      function deviceStatus(msg, kind) {
+        $('device-status').textContent = msg;
+        $('device-status').className = 'status ' + (kind || 'info');
+      }
+
+      // ---- 1. AUTH ----
+      $('btn-register').addEventListener('click', async () => {
+        const email = $('auth-email').value.trim();
+        const password = $('auth-password').value;
+        const name = $('reg-name').value.trim();
+        if (!email || !password || !name) return authStatus('Name, email and password are required to register.', 'err');
+        try {
+          authStatus('Registering…', 'info');
+          const data = await api('POST', '/auth/register', { email, password, name }, { auth: false });
+          adoptSession(data, email);
+          authStatus(`Registered and logged in as ${email}.`, 'ok');
+          log('ok', 'register', `userId ${esc(session.userId)}`);
+        } catch (e) {
+          authStatus('Register failed: ' + e.message, 'err');
+          log('err', 'register failed', esc(e.message));
+        }
+      });
+
+      $('btn-login').addEventListener('click', async () => {
+        const email = $('auth-email').value.trim();
+        const password = $('auth-password').value;
+        if (!email || !password) return authStatus('Email and password are required.', 'err');
+        try {
+          authStatus('Logging in…', 'info');
+          const data = await api('POST', '/auth/login', { email, password }, { auth: false });
+          adoptSession(data, email);
+          authStatus(`Logged in as ${email}.`, 'ok');
+          log('ok', 'login', `userId ${esc(session.userId)}`);
+        } catch (e) {
+          authStatus('Login failed: ' + e.message, 'err');
+          log('err', 'login failed', esc(e.message));
+        }
+      });
+
+      $('btn-logout').addEventListener('click', () => {
+        session.accessToken = session.userId = session.email = session.deviceToken = null;
+        $('token').value = '';
+        setLoggedIn(false);
+        authStatus('Logged out.', 'info');
+        deviceStatus('Log in first.', 'info');
+        log('ok', 'logout');
+      });
+
+      function adoptSession(data, fallbackEmail) {
+        // login/register data: { userId, email, name, accessToken }
+        session.accessToken = data.accessToken;
+        session.userId = data.userId;
+        session.email = data.email || fallbackEmail;
+        if (!session.accessToken || !session.userId) {
+          throw new Error('auth response missing accessToken/userId');
+        }
+        setLoggedIn(true);
+      }
+
+      // ---- 2. REGISTER DEVICE ----
+      $('btn-enable').addEventListener('click', async () => {
+        try {
+          deviceStatus('Requesting notification permission…', 'info');
+          const permission = await Notification.requestPermission();
+          if (permission !== 'granted') return deviceStatus('Permission denied. Allow notifications and retry.', 'err');
+
+          deviceStatus('Registering service worker…', 'info');
           const swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
 
-          setStatus('Fetching FCM token…', 'info');
+          deviceStatus('Fetching FCM token…', 'info');
           const token = await messaging.getToken({ serviceWorkerRegistration: swReg });
+          if (!token) return deviceStatus('No token returned. Check the console.', 'err');
 
-          if (!token) {
-            setStatus('No token returned. Check console for errors.', 'err');
-            return;
-          }
+          session.deviceToken = token;
+          $('token').value = token;
 
-          tokenEl.value = token;
-          copyBtn.disabled = false;
-          setStatus('Token acquired! Copy it and register with the backend.', 'ok');
-        } catch (err) {
-          console.error(err);
-          setStatus('Error: ' + (err && err.message ? err.message : err), 'err');
+          deviceStatus('Registering token with backend…', 'info');
+          await api('POST', '/notifications/register-token', {
+            userId: session.userId,
+            token,
+            platform: 'web',
+          });
+          deviceStatus('Device registered! Pushes to your account will arrive in the tray.', 'ok');
+          log('ok', 'register-token', `…${esc(token.slice(-8))}`);
+        } catch (e) {
+          deviceStatus('Error: ' + e.message, 'err');
+          log('err', 'register-token failed', esc(e.message));
         }
       });
 
-      copyBtn.addEventListener('click', async () => {
+      // ---- 3. SEND ----
+      $('btn-send').addEventListener('click', async () => {
+        const userId = $('send-userid').value.trim() || session.userId;
+        const deviceToken = $('send-devicetoken').value.trim() || session.deviceToken;
+        const title = $('send-title').value.trim();
+        const body = $('send-body').value.trim();
+        if (!deviceToken) return log('err', 'send skipped', 'no device token — register this device first or paste one');
+        if (!title || !body) return log('err', 'send skipped', 'title and body are required');
         try {
-          await navigator.clipboard.writeText(tokenEl.value);
-          setStatus('Token copied to clipboard.', 'ok');
-        } catch {
-          tokenEl.select();
-          document.execCommand('copy');
-          setStatus('Token selected — copy manually if needed.', 'info');
+          const data = await api('POST', '/notifications/send', { userId, deviceToken, title, body });
+          if (data && data.success === false) log('err', 'send → FCM failed', esc(data.error || ''));
+          else log('ok', 'send', data && data.messageId ? `messageId ${esc(data.messageId)}` : 'sent');
+        } catch (e) {
+          log('err', 'send failed', esc(e.message));
         }
       });
 
-      messaging.onMessage((payload) => {
-        console.log('Foreground message:', payload);
-        const n = payload.notification || {};
-        messagesEl.innerHTML =
-          '<div class="status ok"><strong>' +
-          (n.title || '(no title)') + '</strong><br>' + (n.body || '') + '</div>';
+      // ---- 4. CREATE EVENT ----
+      $('btn-event').addEventListener('click', async () => {
+        const title = $('event-title').value.trim();
+        const description = $('event-description').value.trim();
+        const dateLocal = $('event-date').value;
+        if (!title || !description || !dateLocal) return log('err', 'event skipped', 'title, description and date are required');
+        const date = new Date(dateLocal);
+        if (!(date > new Date())) return log('err', 'event skipped', 'date must be in the future');
+        try {
+          const data = await api('POST', '/events', { title, description, date: date.toISOString() });
+          log('ok', 'create-event', data && data.id ? `eventId ${esc(data.id)} — fan-out triggered` : 'created');
+        } catch (e) {
+          log('err', 'create-event failed', esc(e.message));
+        }
       });
+
+      // ---- 5. LOG ----
+      $('btn-clear').addEventListener('click', () => { logEl.innerHTML = ''; });
+
+      // ---- foreground pushes ----
+      messaging.onMessage((payload) => {
+        const n = payload.notification || {};
+        log('ok', 'push received (foreground)', `${esc(n.title || '(no title)')} — ${esc(n.body || '')}`);
+      });
+
+      // default the event date to one hour from now
+      (function seedDate() {
+        const d = new Date(Date.now() + 60 * 60 * 1000);
+        d.setSeconds(0, 0);
+        const pad = (x) => String(x).padStart(2, '0');
+        $('event-date').value =
+          `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      })();
     </script>
   </body>
 </html>
