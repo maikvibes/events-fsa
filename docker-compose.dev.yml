@@ -79,6 +79,21 @@ services:
     networks:
       - backend
 
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+      args:
+        SERVICE_NAME: auth
+    env_file: .env
+    command: ["sh", "-c", "npm run prisma:migrate:deploy"]
+    networks:
+      - backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   api-gateway:
     build:
       context: .
@@ -129,6 +144,8 @@ services:
     networks:
       - backend
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       kafka:
@@ -162,6 +179,8 @@ services:
     networks:
       - backend
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       kafka:
@@ -195,6 +214,8 @@ services:
     networks:
       - backend
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       kafka:
