@@ -1,9 +1,15 @@
 name: events-fsa
 
-# All infra (Kafka, Postgres, Redis) is reached via public DNS.
-# ca.crt must be placed in the project root — it is mounted to
-# /etc/ssl/events-fsa/ca.crt in each container, matching the absolute paths
-# set by generate-secrets.sh in .env.
+x-no-tls-env: &no-tls-env
+  KAFKA_SSL_CA_PATH: ""
+  KAFKA_SASL_MECHANISM: ""
+  KAFKA_SASL_USERNAME: ""
+  KAFKA_SASL_PASSWORD: ""
+  REDIS_TLS: "false"
+  REDIS_TLS_CA_PATH: ""
+  REDIS_PASSWORD: ""
+  DATABASE_SSL_MODE: disable
+  DATABASE_SSL_CA_PATH: ""
 
 services:
   api-gateway:
@@ -15,11 +21,10 @@ services:
     ports:
       - "${PORT:-3000}:${PORT:-3000}"
     env_file: .env
-    volumes:
-      - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
+    environment:
+      <<: *no-tls-env
     networks:
       - backend
-      - infra_backend
     develop:
       watch:
         - path: ./apps/api-gateway
@@ -38,11 +43,10 @@ services:
       args:
         SERVICE_NAME: auth
     env_file: .env
-    volumes:
-      - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
+    environment:
+      <<: *no-tls-env
     networks:
       - backend
-      - infra_backend
     develop:
       watch:
         - path: ./apps/auth
@@ -61,11 +65,10 @@ services:
       args:
         SERVICE_NAME: events
     env_file: .env
-    volumes:
-      - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
+    environment:
+      <<: *no-tls-env
     networks:
       - backend
-      - infra_backend
     develop:
       watch:
         - path: ./apps/events
@@ -84,11 +87,10 @@ services:
       args:
         SERVICE_NAME: notifications
     env_file: .env
-    volumes:
-      - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
+    environment:
+      <<: *no-tls-env
     networks:
       - backend
-      - infra_backend
     develop:
       watch:
         - path: ./apps/notifications
@@ -106,6 +108,3 @@ networks:
     ipam:
       config:
         - subnet: 172.31.0.0/24
-  infra_backend:
-    external: true
-    name: events-fsa-infra_backend
