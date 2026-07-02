@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { ConfigService } from '@nestjs/config';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getMessaging } from 'firebase-admin/messaging';
+import { getMessaging, type BatchResponse } from 'firebase-admin/messaging';
 import {
   SendNotificationDto,
   NotificationResult,
@@ -11,6 +11,8 @@ import {
   NotificationSentEvent,
   NotificationFailedEvent,
   NOTIFICATIONS_KAFKA_PRODUCER,
+  SendMulticastDto,
+  BroadcastDto,
 } from '@app/shared';
 import { PrismaService } from './prisma.service';
 import { NotificationStatus, Platform } from './generated/prisma-client';
@@ -22,7 +24,8 @@ export class NotificationsService implements OnModuleInit {
   constructor(
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
-    @Inject(NOTIFICATIONS_KAFKA_PRODUCER) private readonly producer: ClientProxy,
+    @Inject(NOTIFICATIONS_KAFKA_PRODUCER)
+    private readonly producer: ClientProxy,
   ) {}
 
   onModuleInit() {
@@ -30,7 +33,9 @@ export class NotificationsService implements OnModuleInit {
       initializeApp({
         credential: cert({
           projectId: this.config.getOrThrow('FIREBASE_PROJECT_ID'),
-          privateKey: this.config.getOrThrow<string>('FIREBASE_PRIVATE_KEY').replace(/\\n/g, '\n'),
+          privateKey: this.config
+            .getOrThrow<string>('FIREBASE_PRIVATE_KEY')
+            .replace(/\\n/g, '\n'),
           clientEmail: this.config.getOrThrow('FIREBASE_CLIENT_EMAIL'),
         }),
       });
@@ -39,7 +44,9 @@ export class NotificationsService implements OnModuleInit {
   }
 
   async send(dto: SendNotificationDto): Promise<NotificationResult> {
-    this.logger.log(`Sending FCM to user ${dto.userId} device ...${dto.deviceToken.slice(-6)}`);
+    this.logger.log(
+      `Sending FCM to user ${dto.userId} device ...${dto.deviceToken.slice(-6)}`,
+    );
     try {
       const messageId = await getMessaging().send({
         token: dto.deviceToken,
@@ -48,7 +55,10 @@ export class NotificationsService implements OnModuleInit {
         android: { priority: 'high' },
         apns: {
           payload: {
-            aps: { alert: { title: dto.title, body: dto.body }, sound: 'default' },
+            aps: {
+              alert: { title: dto.title, body: dto.body },
+              sound: 'default',
+            },
           },
         },
       });
@@ -103,7 +113,80 @@ export class NotificationsService implements OnModuleInit {
     }
   }
 
-  async registerDeviceToken(userId: string, token: string, platform: Platform): Promise<void> {
+  async sendMulticast(
+    dto: SendMulticastDto,
+  ): Promise<{ sent: number; failed: number }> {
+    const { tokens, title, body, data } = dto;
+    if (!tokens.length) return { sent: 0, failed: 0 };
+
+    let sent = 0;
+    const deadTokens: string[] = [];
+
+    for (let i = 0; i < tokens.length; i += 500) {
+      const chunk = tokens.slice(i, i + 500);
+      const res: BatchResponse = await (
+        getMessaging().sendEachForMulticast as (m: {
+          tokens: string[];
+          notification: { title: string; body: string };
+          data?: Record<string, string>;
+          android: { priority: 'high' };
+          apns: object;
+        }) => Promise<BatchResponse>
+      )({
+        tokens: chunk,
+        notification: { title, body },
+        data,
+        android: { priority: 'high' },
+        apns: {
+          payload: { aps: { alert: { title, body }, sound: 'default' } },
+        },
+      });
+
+      sent += res.successCount;
+      res.responses.forEach((r, idx) => {
+        if (
+          !r.success &&
+          (r.error?.code === 'messaging/registration-token-not-registered' ||
+            r.error?.code === 'messaging/invalid-registration-token')
+        ) {
+          deadTokens.push(chunk[idx]);
+        }
+      });
+    }
+
+    if (deadTokens.length) {
+      await this.prisma.deviceToken.deleteMany({
+        where: { token: { in: deadTokens } },
+      });
+      this.logger.warn(`Removed ${deadTokens.length} dead device tokens`);
+    }
+
+    const failed = tokens.length - sent;
+    this.logger.log(`FCM multicast: ${sent}/${tokens.length} sent`);
+    return { sent, failed };
+  }
+
+  async broadcast(
+    dto: BroadcastDto,
+  ): Promise<{ sent: number; failed: number }> {
+    const all = await this.prisma.deviceToken.findMany({
+      select: {
+        token: true,
+      },
+    });
+    const tokens = all.map((t) => t.token);
+    if (!tokens.length) {
+      this.logger.warn('Broadcast: không có device token nào');
+      return { sent: 0, failed: 0 };
+    }
+    return this.sendMulticast({ tokens, ...dto });
+  }
+
+  async registerDeviceToken(
+    userId: string,
+    token: string,
+    platform: Platform,
+  ): Promise<void> {
     await this.prisma.deviceToken.upsert({
       where: { token },
       create: { userId, token, platform },
@@ -113,8 +196,12 @@ export class NotificationsService implements OnModuleInit {
   }
 
   async onEventCreated(event: EventCreatedEvent): Promise<void> {
-    this.logger.log(`Event ${event.eventId} created — fanning out FCM to user ${event.userId}`);
-    const tokens = await this.prisma.deviceToken.findMany({ where: { userId: event.userId } });
+    this.logger.log(
+      `Event ${event.eventId} created — fanning out FCM to user ${event.userId}`,
+    );
+    const tokens = await this.prisma.deviceToken.findMany({
+      where: { userId: event.userId },
+    });
 
     if (!tokens.length) {
       this.logger.warn(`No device tokens for user ${event.userId}`);
@@ -134,11 +221,14 @@ export class NotificationsService implements OnModuleInit {
       ),
     );
 
-    const failed = results.filter(
-      (r): r is PromiseFulfilledResult<NotificationResult> =>
-        r.status === 'fulfilled' && !r.value.success,
-    ).length + results.filter((r) => r.status === 'rejected').length;
+    const failed =
+      results.filter(
+        (r): r is PromiseFulfilledResult<NotificationResult> =>
+          r.status === 'fulfilled' && !r.value.success,
+      ).length + results.filter((r) => r.status === 'rejected').length;
 
-    this.logger.log(`FCM fan-out: ${results.length - failed}/${results.length} sent`);
+    this.logger.log(
+      `FCM fan-out: ${results.length - failed}/${results.length} sent`,
+    );
   }
 }
