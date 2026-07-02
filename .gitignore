@@ -5,6 +5,7 @@
 !.env.team.template
 secrets/
 nginx/certs/
+scripts/redis-acl.conf
 
 # Local app secrets
 firebase-adminsdk*.json
