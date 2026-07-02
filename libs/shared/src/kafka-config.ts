@@ -8,10 +8,14 @@ export const NOTIFICATIONS_KAFKA_PRODUCER = 'NOTIFICATIONS_KAFKA_PRODUCER';
 
 export const kafkaBaseClientOptions = (clientId: string) => ({
   clientId,
-  brokers: (process.env.KAFKA_BROKER ?? 'kafka:29092').split(',').map((b) => b.trim()),
+  brokers: (process.env.KAFKA_BROKER ?? 'kafka:29092')
+    .split(',')
+    .map((b) => b.trim()),
 });
 
-export const kafkaClientConfig = (serviceName: string): ClientProviderOptions => {
+export const kafkaClientConfig = (
+  serviceName: string,
+): ClientProviderOptions => {
   const id = serviceName.toLowerCase().replace(/_/g, '-');
   return {
     name: serviceName,
@@ -19,7 +23,9 @@ export const kafkaClientConfig = (serviceName: string): ClientProviderOptions =>
     options: {
       client: {
         clientId: `${id}-client`,
-        brokers: (process.env.KAFKA_BROKER ?? 'kafka:29092').split(',').map((b) => b.trim()),
+        brokers: (process.env.KAFKA_BROKER ?? 'kafka:29092')
+          .split(',')
+          .map((b) => b.trim()),
       },
       consumer: {
         groupId: `${id}-consumer`,

@@ -29,10 +29,18 @@ import {
   SendNotificationSchema,
   RegisterDeviceTokenSchema,
 } from '@app/shared';
-import type { TokenPayload, CreateEventDto, UpdateEventDto, SendNotificationDto } from '@app/shared';
+import type {
+  TokenPayload,
+  CreateEventDto,
+  UpdateEventDto,
+  SendNotificationDto,
+} from '@app/shared';
 import { RegisterBodyDto, LoginBodyDto } from './dto/auth.dto';
 import { CreateEventBodyDto, UpdateEventBodyDto } from './dto/events.dto';
-import { SendNotificationBodyDto, RegisterDeviceTokenBodyDto } from './dto/notifications.dto';
+import {
+  SendNotificationBodyDto,
+  RegisterDeviceTokenBodyDto,
+} from './dto/notifications.dto';
 
 @Controller()
 export class ApiGatewayController {
@@ -54,7 +62,10 @@ export class ApiGatewayController {
   @ApiTags('Auth')
   @ApiOperation({ summary: 'Login and receive JWT token' })
   @ApiBody({ type: LoginBodyDto })
-  @ApiResponse({ status: 200, description: 'Login successful, returns access token' })
+  @ApiResponse({
+    status: 200,
+    description: 'Login successful, returns access token',
+  })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   @Public()
   @Post('auth/login')
@@ -89,7 +100,11 @@ export class ApiGatewayController {
   @ApiTags('Events')
   @ApiBearerAuth('bearerAuth')
   @ApiOperation({ summary: 'Get a single event by ID' })
-  @ApiParam({ name: 'eventId', description: 'UUID of the event', format: 'uuid' })
+  @ApiParam({
+    name: 'eventId',
+    description: 'UUID of the event',
+    format: 'uuid',
+  })
   @ApiResponse({ status: 200, description: 'Event found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Event not found' })
@@ -101,7 +116,11 @@ export class ApiGatewayController {
   @ApiTags('Events')
   @ApiBearerAuth('bearerAuth')
   @ApiOperation({ summary: 'Update an event' })
-  @ApiParam({ name: 'eventId', description: 'UUID of the event', format: 'uuid' })
+  @ApiParam({
+    name: 'eventId',
+    description: 'UUID of the event',
+    format: 'uuid',
+  })
   @ApiBody({ type: UpdateEventBodyDto })
   @ApiResponse({ status: 200, description: 'Event updated' })
   @ApiResponse({ status: 400, description: 'Validation error' })
@@ -110,16 +129,25 @@ export class ApiGatewayController {
   @Put('events/:eventId')
   updateEvent(
     @Param('eventId', ParseUUIDPipe) eventId: string,
-    @Body(new ZodValidationPipe(UpdateEventSchema)) dto: Omit<UpdateEventDto, 'eventId'>,
+    @Body(new ZodValidationPipe(UpdateEventSchema))
+    dto: Omit<UpdateEventDto, 'eventId'>,
     @CurrentUser() user: TokenPayload,
   ) {
-    return this.apiGatewayService.updateEvent({ ...dto, eventId, userId: user.userId });
+    return this.apiGatewayService.updateEvent({
+      ...dto,
+      eventId,
+      userId: user.userId,
+    });
   }
 
   @ApiTags('Events')
   @ApiBearerAuth('bearerAuth')
   @ApiOperation({ summary: 'Delete an event' })
-  @ApiParam({ name: 'eventId', description: 'UUID of the event', format: 'uuid' })
+  @ApiParam({
+    name: 'eventId',
+    description: 'UUID of the event',
+    format: 'uuid',
+  })
   @ApiResponse({ status: 200, description: 'Event deleted' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Event not found' })
@@ -154,6 +182,10 @@ export class ApiGatewayController {
   @Post('notifications/register-token')
   @UsePipes(new ZodValidationPipe(RegisterDeviceTokenSchema))
   registerDeviceToken(@Body() dto: RegisterDeviceTokenBodyDto) {
-    return this.apiGatewayService.registerDeviceToken(dto.userId, dto.token, dto.platform);
+    return this.apiGatewayService.registerDeviceToken(
+      dto.userId,
+      dto.token,
+      dto.platform,
+    );
   }
 }

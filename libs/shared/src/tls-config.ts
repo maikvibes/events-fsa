@@ -1,4 +1,4 @@
-export function readCaBundle(_path: string | undefined | null): undefined {
+export function readCaBundle(): undefined {
   return undefined;
 }
 

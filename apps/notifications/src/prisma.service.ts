@@ -5,7 +5,10 @@ import pg from 'pg';
 import { PrismaClient } from './generated/prisma-client';
 
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+export class PrismaService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
   constructor(config: ConfigService) {
     const pool = new pg.Pool({
       connectionString: config.getOrThrow('NOTIFICATIONS_DATABASE_URL'),

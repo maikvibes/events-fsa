@@ -22,41 +22,63 @@ export class AuthService {
 
   async register(dto: RegisterDto): Promise<AuthResponse> {
     this.logger.log(`Registering: ${dto.email}`);
-    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
-    if (existing) throw new RpcException({ statusCode: 409, message: 'Email already in use' });
+    const existing = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+    if (existing)
+      throw new RpcException({
+        statusCode: 409,
+        message: 'Email already in use',
+      });
 
     const password = this.hashPassword(dto.password);
     const user = await this.prisma.user.create({
       data: { email: dto.email, name: dto.name, password },
     });
-    this.logger.debug(`Emit ${KafkaTopics.AUTH_USER_CREATED} userId=${user.id}`);
+    this.logger.debug(
+      `Emit ${KafkaTopics.AUTH_USER_CREATED} userId=${user.id}`,
+    );
     const accessToken = this.signToken({ userId: user.id, email: user.email });
     return { userId: user.id, email: user.email, name: user.name, accessToken };
   }
 
   async login(dto: LoginDto): Promise<AuthResponse> {
     this.logger.log(`Login: ${dto.email}`);
-    const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
     if (!user || !this.verifyPassword(dto.password, user.password)) {
-      throw new RpcException({ statusCode: 401, message: 'Invalid credentials' });
+      throw new RpcException({
+        statusCode: 401,
+        message: 'Invalid credentials',
+      });
     }
     const accessToken = this.signToken({ userId: user.id, email: user.email });
     return { userId: user.id, email: user.email, name: user.name, accessToken };
   }
 
-  async validateToken(dto: ValidateTokenDto): Promise<TokenPayload> {
+  validateToken(dto: ValidateTokenDto): TokenPayload {
     this.logger.log('Validating token');
     try {
       const payload = jwt.verify(dto.token, this.jwtSecret) as jwt.JwtPayload;
-      return { userId: payload['userId'] as string, email: payload['email'] as string };
+      return {
+        userId: payload['userId'] as string,
+        email: payload['email'] as string,
+      };
     } catch {
-      throw new RpcException({ statusCode: 401, message: 'Invalid or expired token' });
+      throw new RpcException({
+        statusCode: 401,
+        message: 'Invalid or expired token',
+      });
     }
   }
 
   private hashPassword(plain: string): string {
     const salt = crypto.randomBytes(16).toString('hex');
-    const hash = crypto.createHmac('sha256', this.jwtSecret).update(plain + salt).digest('hex');
+    const hash = crypto
+      .createHmac('sha256', this.jwtSecret)
+      .update(plain + salt)
+      .digest('hex');
     return `${salt}:${hash}`;
   }
 
@@ -64,8 +86,14 @@ export class AuthService {
     if (stored.includes(':')) {
       // salted HMAC-SHA256
       const [salt, hash] = stored.split(':', 2);
-      const expected = crypto.createHmac('sha256', this.jwtSecret).update(plain + salt).digest('hex');
-      return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(expected, 'hex'));
+      const expected = crypto
+        .createHmac('sha256', this.jwtSecret)
+        .update(plain + salt)
+        .digest('hex');
+      return crypto.timingSafeEqual(
+        Buffer.from(hash, 'hex'),
+        Buffer.from(expected, 'hex'),
+      );
     }
     // legacy bare SHA256 (no salt)
     const legacy = crypto.createHash('sha256').update(plain).digest('hex');

@@ -11,7 +11,11 @@ describe('NotificationsController', () => {
       providers: [
         {
           provide: NotificationsService,
-          useValue: { send: jest.fn(), registerDeviceToken: jest.fn(), onEventCreated: jest.fn() },
+          useValue: {
+            send: jest.fn(),
+            registerDeviceToken: jest.fn(),
+            onEventCreated: jest.fn(),
+          },
         },
       ],
     }).compile();

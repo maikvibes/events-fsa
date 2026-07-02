@@ -11,7 +11,11 @@ describe('AuthController', () => {
       providers: [
         {
           provide: AuthService,
-          useValue: { register: jest.fn(), login: jest.fn(), validateToken: jest.fn() },
+          useValue: {
+            register: jest.fn(),
+            login: jest.fn(),
+            validateToken: jest.fn(),
+          },
         },
       ],
     }).compile();

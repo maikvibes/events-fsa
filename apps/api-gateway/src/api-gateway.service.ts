@@ -20,7 +20,8 @@ export class ApiGatewayService implements OnModuleInit {
   constructor(
     @Inject(AUTH_SERVICE) private readonly authClient: ClientKafka,
     @Inject(EVENTS_SERVICE) private readonly eventsClient: ClientKafka,
-    @Inject(NOTIFICATIONS_SERVICE) private readonly notificationsClient: ClientKafka,
+    @Inject(NOTIFICATIONS_SERVICE)
+    private readonly notificationsClient: ClientKafka,
   ) {}
 
   async onModuleInit() {
@@ -35,7 +36,9 @@ export class ApiGatewayService implements OnModuleInit {
     this.eventsClient.subscribeToResponseOf(EventsPatterns.DELETE);
 
     this.notificationsClient.subscribeToResponseOf(NotificationsPatterns.SEND);
-    this.notificationsClient.subscribeToResponseOf('notifications.register-token');
+    this.notificationsClient.subscribeToResponseOf(
+      'notifications.register-token',
+    );
 
     await Promise.all([
       this.authClient.connect(),
@@ -57,11 +60,15 @@ export class ApiGatewayService implements OnModuleInit {
   }
 
   findEventsByUser(userId: string) {
-    return firstValueFrom(this.eventsClient.send(EventsPatterns.FIND_ALL, { userId }));
+    return firstValueFrom(
+      this.eventsClient.send(EventsPatterns.FIND_ALL, { userId }),
+    );
   }
 
   findEvent(eventId: string) {
-    return firstValueFrom(this.eventsClient.send(EventsPatterns.FIND_ONE, { eventId }));
+    return firstValueFrom(
+      this.eventsClient.send(EventsPatterns.FIND_ONE, { eventId }),
+    );
   }
 
   updateEvent(dto: UpdateEventDto) {
@@ -69,16 +76,28 @@ export class ApiGatewayService implements OnModuleInit {
   }
 
   deleteEvent(eventId: string, userId: string) {
-    return firstValueFrom(this.eventsClient.send(EventsPatterns.DELETE, { eventId, userId }));
+    return firstValueFrom(
+      this.eventsClient.send(EventsPatterns.DELETE, { eventId, userId }),
+    );
   }
 
   sendNotification(dto: SendNotificationDto) {
-    return firstValueFrom(this.notificationsClient.send(NotificationsPatterns.SEND, dto));
+    return firstValueFrom(
+      this.notificationsClient.send(NotificationsPatterns.SEND, dto),
+    );
   }
 
-  registerDeviceToken(userId: string, token: string, platform: 'ios' | 'android' | 'web') {
+  registerDeviceToken(
+    userId: string,
+    token: string,
+    platform: 'ios' | 'android' | 'web',
+  ) {
     return firstValueFrom(
-      this.notificationsClient.send('notifications.register-token', { userId, token, platform }),
+      this.notificationsClient.send('notifications.register-token', {
+        userId,
+        token,
+        platform,
+      }),
     );
   }
 }

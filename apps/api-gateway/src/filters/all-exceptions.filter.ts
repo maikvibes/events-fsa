@@ -39,7 +39,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
         message = (e.message as string) ?? message;
       }
     } else {
-      this.logger.error('Unhandled exception', exception instanceof Error ? exception.stack : exception);
+      this.logger.error(
+        'Unhandled exception',
+        exception instanceof Error ? exception.stack : exception,
+      );
     }
 
     response.status(status).json({

@@ -22,7 +22,7 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./apps/events-app/test/jest-e2e.json",
+    "test:e2e": "jest --config apps/events-app/test/jest-e2e.json",
     "prisma:generate": "prisma generate --schema=apps/auth/prisma/schema.prisma && prisma generate --schema=apps/events/prisma/schema.prisma && prisma generate --schema=apps/notifications/prisma/schema.prisma",
     "prisma:migrate:auth": "cd apps/auth && prisma migrate dev",
     "prisma:migrate:events": "cd apps/events && prisma migrate dev",
