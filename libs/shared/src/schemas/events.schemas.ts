@@ -4,7 +4,9 @@ export const CreateEventSchema = z.object({
   userId: z.uuid(),
   title: z.string().min(1).max(200).trim(),
   description: z.string().min(1).max(2000).trim(),
-  date: z.coerce.date().refine((d) => d > new Date(), { message: 'Event date must be in the future' }),
+  date: z.coerce.date().refine((d) => d > new Date(), {
+    message: 'Event date must be in the future',
+  }),
 });
 
 export const UpdateEventSchema = z.object({

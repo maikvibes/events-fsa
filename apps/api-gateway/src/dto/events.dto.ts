@@ -6,7 +6,9 @@ import { z } from 'zod';
 // These DTOs are OpenAPI-only; runtime validation uses ZodValidationPipe with the original schemas.
 export class CreateEventBodyDto extends createZodDto(
   CreateEventSchema.omit({ userId: true }).extend({
-    date: z.string().describe('ISO 8601 datetime string — must be in the future'),
+    date: z
+      .string()
+      .describe('ISO 8601 datetime string — must be in the future'),
   }),
 ) {}
 

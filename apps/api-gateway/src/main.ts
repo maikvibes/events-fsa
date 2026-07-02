@@ -13,7 +13,10 @@ async function bootstrap() {
   const reflector = app.get(Reflector);
 
   app.useGlobalFilters(new AllExceptionsFilter());
-  app.useGlobalInterceptors(new LoggingInterceptor(), new TransformInterceptor());
+  app.useGlobalInterceptors(
+    new LoggingInterceptor(),
+    new TransformInterceptor(),
+  );
   app.useGlobalGuards(new JwtAuthGuard(reflector, app.get('AUTH_SERVICE')));
 
   app.setGlobalPrefix('api/v1');
@@ -23,11 +26,16 @@ async function bootstrap() {
     .setTitle('FSA Events API')
     .setDescription('API Gateway for the FSA Events microservices platform')
     .setVersion('1.0')
-    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'bearerAuth')
+    .addBearerAuth(
+      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+      'bearerAuth',
+    )
     .addServer(`http://localhost:${process.env.PORT ?? 3000}`, 'Local')
     .build();
 
-  const document = cleanupOpenApiDoc(SwaggerModule.createDocument(app, swaggerConfig));
+  const document = cleanupOpenApiDoc(
+    SwaggerModule.createDocument(app, swaggerConfig),
+  );
 
   // Dynamic import: static import compiles to CJS require() with module:nodenext.
   // @scalar/client-side-rendering is ESM-only (no CJS export) → ERR_REQUIRE_ESM.

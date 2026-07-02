@@ -81,6 +81,28 @@ Apply the same change to the `PUT` and `DELETE` event routes (omit the
 JWT-derived fields from the body schema). Until this lands, `02-events-crud`,
 `05-soak`, and the create branch of `04-spike` will fail against the live API.
 
+## Issue 3 — api-gateway e2e spec needs a live Kafka broker
+
+`apps/api-gateway/test/app.e2e-spec.ts` imports the full `ApiGatewayModule`,
+which wires up real `ClientKafka` proxies (auth/events/notifications). Unlike
+the other apps' e2e specs, this one isn't mockable as-is — it hangs retrying
+`kafka:29093` for minutes and then fails when no broker is reachable.
+
+Excluded from the `test:e2e` npm script (2026-07-03) for that reason — CI runs
+that script without a Kafka service container. To bring it back: either add a
+Kafka service container to the CI job, or have the spec override the Kafka
+client providers with mocks the way the unit `*.controller.spec.ts` files do.
+
+## Issue 4 — auth/events/notifications e2e specs were dead boilerplate
+
+`apps/{auth,events,notifications}/test/app.e2e-spec.ts` were unedited copies
+of Nest's default scaffold: they asserted `GET /` returns `200 "Hello World!"`.
+These three apps are microservice-only (`@MessagePattern` handlers, no HTTP
+controller), so `/` correctly 404s — the assertion was never true for them.
+Deleted (2026-07-03) rather than fixed to assert 404, since a "route doesn't
+exist" check isn't a meaningful e2e test. `events-app` (the one app that still
+has an actual root HTTP controller) keeps its e2e spec.
+
 ## Note on running the suite
 
 These scripts define their own scenarios with named `exec` functions. Run them

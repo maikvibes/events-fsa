@@ -83,8 +83,11 @@ export class EventsService {
     const cached = await this.cache.get<EventDto>(cacheKey);
     if (cached) return cached;
 
-    const event = await this.prisma.event.findUnique({ where: { id: dto.eventId } });
-    if (!event) throw new RpcException({ statusCode: 404, message: 'Event not found' });
+    const event = await this.prisma.event.findUnique({
+      where: { id: dto.eventId },
+    });
+    if (!event)
+      throw new RpcException({ statusCode: 404, message: 'Event not found' });
 
     const result = this.toDto(event);
     await this.cache.set(cacheKey, result, CacheTTL.EVENT);
@@ -112,14 +115,19 @@ export class EventsService {
     };
     this.producer.emit(KafkaTopics.EVENT_UPDATED, payload);
 
-    await this.cache.del(CacheKeys.EVENT(event.id), CacheKeys.EVENTS_BY_USER(event.userId));
+    await this.cache.del(
+      CacheKeys.EVENT(event.id),
+      CacheKeys.EVENTS_BY_USER(event.userId),
+    );
 
     return this.toDto(event);
   }
 
   async delete(dto: DeleteEventDto): Promise<void> {
     this.logger.log(`Deleting event ${dto.eventId}`);
-    const event = await this.prisma.event.delete({ where: { id: dto.eventId } });
+    const event = await this.prisma.event.delete({
+      where: { id: dto.eventId },
+    });
 
     const payload: EventDeletedEvent = {
       eventId: event.id,
@@ -128,7 +136,10 @@ export class EventsService {
     };
     this.producer.emit(KafkaTopics.EVENT_DELETED, payload);
 
-    await this.cache.del(CacheKeys.EVENT(event.id), CacheKeys.EVENTS_BY_USER(event.userId));
+    await this.cache.del(
+      CacheKeys.EVENT(event.id),
+      CacheKeys.EVENTS_BY_USER(event.userId),
+    );
   }
 
   private toDto(event: PrismaEvent): EventDto {
