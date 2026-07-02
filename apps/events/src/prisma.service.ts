@@ -3,15 +3,12 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
 import { PrismaClient } from './generated/prisma-client';
-import { pgSslConfig } from '@app/shared/tls-config';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   constructor(config: ConfigService) {
-    const ssl = pgSslConfig();
     const pool = new pg.Pool({
       connectionString: config.getOrThrow('EVENTS_DATABASE_URL'),
-      ...(ssl !== undefined ? { ssl } : {}),
     });
     super({ adapter: new PrismaPg(pool) });
   }

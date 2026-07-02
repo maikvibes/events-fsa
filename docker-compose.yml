@@ -1,16 +1,5 @@
 name: events-fsa
 
-x-no-tls-env: &no-tls-env
-  KAFKA_SSL_CA_PATH: ""
-  KAFKA_SASL_MECHANISM: ""
-  KAFKA_SASL_USERNAME: ""
-  KAFKA_SASL_PASSWORD: ""
-  REDIS_TLS: "false"
-  REDIS_TLS_CA_PATH: ""
-  REDIS_PASSWORD: ""
-  DATABASE_SSL_MODE: disable
-  DATABASE_SSL_CA_PATH: ""
-
 services:
   api-gateway:
     build:
@@ -21,8 +10,6 @@ services:
     ports:
       - "${PORT:-3000}:${PORT:-3000}"
     env_file: .env
-    environment:
-      <<: *no-tls-env
     networks:
       - backend
     develop:
@@ -43,8 +30,6 @@ services:
       args:
         SERVICE_NAME: auth
     env_file: .env
-    environment:
-      <<: *no-tls-env
     networks:
       - backend
     develop:
@@ -65,8 +50,6 @@ services:
       args:
         SERVICE_NAME: events
     env_file: .env
-    environment:
-      <<: *no-tls-env
     networks:
       - backend
     develop:
@@ -87,8 +70,6 @@ services:
       args:
         SERVICE_NAME: notifications
     env_file: .env
-    environment:
-      <<: *no-tls-env
     networks:
       - backend
     develop:
@@ -104,7 +85,3 @@ services:
 
 networks:
   backend:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.31.0.0/24

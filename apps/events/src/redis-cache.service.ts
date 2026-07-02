@@ -1,4 +1,3 @@
-import * as fs from 'fs';
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, RedisClientType } from 'redis';
@@ -11,24 +10,11 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
   constructor(private readonly config: ConfigService) {}
 
   async onModuleInit() {
-    const useTls = (this.config.get('REDIS_TLS') || '').toLowerCase() === 'true';
-    const caPath = this.config.get<string>('REDIS_TLS_CA_PATH');
-
-    // node-redis v6: tls must be boolean true; CA + rejectUnauthorized go in socket directly
-    const socket: Record<string, unknown> = {
-      host: this.config.get('REDIS_HOST', 'localhost'),
-      port: this.config.get<number>('REDIS_PORT', 6379),
-      ...(useTls && {
-        tls: true,
-        rejectUnauthorized: true,
-        ...(caPath ? { ca: fs.readFileSync(caPath, 'utf8') } : {}),
-      }),
-    };
-
     this.client = createClient({
-      socket,
-      username: this.config.get('REDIS_USERNAME') || undefined,
-      password: this.config.get('REDIS_PASSWORD') || undefined,
+      socket: {
+        host: this.config.get('REDIS_HOST', 'localhost'),
+        port: this.config.get<number>('REDIS_PORT', 6379),
+      },
     }) as RedisClientType;
 
     this.client.on('error', (err) => this.logger.error('Redis error', err));

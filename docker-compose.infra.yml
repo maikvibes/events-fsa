@@ -1,12 +1,9 @@
 name: events-fsa-infra
 
-x-restart: &restart
-  restart: unless-stopped
-
 services:
   postgres:
     image: postgres:16-alpine
-    <<: *restart
+    restart: unless-stopped
     ports:
       - "5432:5432"
     environment:
@@ -30,12 +27,11 @@ services:
       retries: 10
       start_period: 30s
     networks:
-      backend:
-        ipv4_address: 172.30.0.10
+      - backend
 
   kafka:
     image: apache/kafka:latest
-    <<: *restart
+    restart: unless-stopped
     ports:
       - "29092:29092"
     environment:
@@ -65,12 +61,11 @@ services:
       retries: 20
       start_period: 60s
     networks:
-      backend:
-        ipv4_address: 172.30.0.11
+      - backend
 
   redis:
     image: redis:7-alpine
-    <<: *restart
+    restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
@@ -82,15 +77,10 @@ services:
       retries: 10
       start_period: 10s
     networks:
-      backend:
-        ipv4_address: 172.30.0.12
+      - backend
 
 networks:
   backend:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.30.0.0/24
 
 volumes:
   postgres_data:
