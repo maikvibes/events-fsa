@@ -19,6 +19,7 @@ services:
       - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
     networks:
       - backend
+      - infra_backend
     develop:
       watch:
         - path: ./apps/api-gateway
@@ -41,6 +42,7 @@ services:
       - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
     networks:
       - backend
+      - infra_backend
     develop:
       watch:
         - path: ./apps/auth
@@ -63,6 +65,7 @@ services:
       - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
     networks:
       - backend
+      - infra_backend
     develop:
       watch:
         - path: ./apps/events
@@ -85,6 +88,7 @@ services:
       - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
     networks:
       - backend
+      - infra_backend
     develop:
       watch:
         - path: ./apps/notifications
@@ -99,3 +103,6 @@ services:
 networks:
   backend:
     driver: bridge
+  infra_backend:
+    external: true
+    name: events-fsa-infra_backend
