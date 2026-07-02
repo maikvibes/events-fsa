@@ -31,7 +31,7 @@ services:
       - ./scripts/init-roles.sh:/docker-entrypoint-initdb.d/10-init-roles.sh:ro
       - ./nginx/certs/postgres.crt:/etc/ssl/events-fsa/postgres.crt:ro
       - ./nginx/certs/postgres.key:/etc/ssl/events-fsa/postgres.key:ro
-      - ./nginx/certs/ca.crt:/etc/ssl/events-fsa/ca.crt:ro
+      - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
     entrypoint:
       - sh
       - -c
@@ -167,7 +167,7 @@ services:
       - ./scripts/redis-acl.conf:/usr/local/etc/redis/users.acl:ro
       - ./nginx/certs/redis.crt:/etc/ssl/events-fsa/redis.crt:ro
       - ./nginx/certs/redis.key:/etc/ssl/events-fsa/redis.key:ro
-      - ./nginx/certs/ca.crt:/etc/ssl/events-fsa/ca.crt:ro
+      - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
     healthcheck:
       test:
         - "CMD-SHELL"
@@ -201,7 +201,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     volumes:
-      - ./nginx/certs/ca.crt:/etc/ssl/events-fsa/ca.crt:ro
+      - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
     networks:
       - backend
     depends_on:
@@ -237,7 +237,7 @@ services:
       - REDIS_PORT=6379
       - AUTH_DATABASE_URL=postgresql://${POSTGRES_AUTH_USER}:${POSTGRES_AUTH_PASSWORD}@postgres:5432/auth_db?schema=public
     volumes:
-      - ./nginx/certs/ca.crt:/etc/ssl/events-fsa/ca.crt:ro
+      - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
     networks:
       - backend
     depends_on:
@@ -273,7 +273,7 @@ services:
       - REDIS_PORT=6379
       - EVENTS_DATABASE_URL=postgresql://${POSTGRES_EVENTS_USER}:${POSTGRES_EVENTS_PASSWORD}@postgres:5432/events_db?schema=public
     volumes:
-      - ./nginx/certs/ca.crt:/etc/ssl/events-fsa/ca.crt:ro
+      - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
     networks:
       - backend
     depends_on:
@@ -309,7 +309,7 @@ services:
       - REDIS_PORT=6379
       - NOTIFICATIONS_DATABASE_URL=postgresql://${POSTGRES_NOTIFICATIONS_USER}:${POSTGRES_NOTIFICATIONS_PASSWORD}@postgres:5432/notifications_db?schema=public
     volumes:
-      - ./nginx/certs/ca.crt:/etc/ssl/events-fsa/ca.crt:ro
+      - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
     networks:
       - backend
     depends_on:

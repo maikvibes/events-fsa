@@ -43,7 +43,6 @@ SVC_IPS=(
   "postgres 172.30.0.10"
   "kafka    172.30.0.11"
   "redis    172.30.0.12"
-  "zookeeper 172.30.0.13"
 )
 
 # --- Build SAN list ---
@@ -166,8 +165,8 @@ if [[ ! -f "$KAFKA_SECRET_DIR/server.keystore.jks" ]]; then
     -destkeypass      "$KAFKA_KEY_PASS" \
     -noprompt >/dev/null
 
-  # Truststore = CA cert (JKS, since Kafka 3.6 / Java 11 in the cp-kafka
-  # image is finicky about PKCS12 truststores during its startup self-test).
+  # Truststore = CA cert (JKS; Kafka's SSL self-test is finicky about PKCS12
+  # truststores).
   keytool -import -trustcacerts -alias CARoot \
     -file         "$NGINX_CERT_DIR/ca.crt" \
     -keystore     "$KAFKA_SECRET_DIR/server.truststore.jks" \
@@ -226,9 +225,12 @@ else
   echo "[certs] Redis server cert already present, skipping."
 fi
 
+cp "$NGINX_CERT_DIR/ca.crt" "$ROOT/ca.crt"
+chmod 644 "$ROOT/ca.crt"
+
 echo
 echo "TLS material ready."
-echo "  CA cert:           $NGINX_CERT_DIR/ca.crt"
+echo "  CA cert:           $NGINX_CERT_DIR/ca.crt → ca.crt (project root)"
 echo "  Nginx server cert: $NGINX_CERT_DIR/server.crt"
 echo "  dhparam:           $NGINX_SECRET_DIR/dhparam.pem"
 echo "  Kafka keystore:    $KAFKA_SECRET_DIR/server.keystore.jks"
