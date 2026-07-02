@@ -1,9 +1,9 @@
 name: events-fsa
 
 # All infra (Kafka, Postgres, Redis) is reached via public DNS.
-# ca.crt must be placed in the project root — it is mounted to /app/ca.crt
-# in each container, matching the KAFKA_SSL_CA_PATH / REDIS_TLS_CA_PATH /
-# DATABASE_SSL_CA_PATH values in .env.
+# ca.crt must be placed in the project root — it is mounted to
+# /etc/ssl/events-fsa/ca.crt in each container, matching the absolute paths
+# set by generate-secrets.sh in .env.
 
 services:
   api-gateway:
@@ -16,7 +16,7 @@ services:
       - "${PORT:-3000}:${PORT:-3000}"
     env_file: .env
     volumes:
-      - ./ca.crt:/app/ca.crt:ro
+      - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
     networks:
       - backend
     develop:
@@ -38,7 +38,7 @@ services:
         SERVICE_NAME: auth
     env_file: .env
     volumes:
-      - ./ca.crt:/app/ca.crt:ro
+      - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
     networks:
       - backend
     develop:
@@ -60,7 +60,7 @@ services:
         SERVICE_NAME: events
     env_file: .env
     volumes:
-      - ./ca.crt:/app/ca.crt:ro
+      - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
     networks:
       - backend
     develop:
@@ -82,7 +82,7 @@ services:
         SERVICE_NAME: notifications
     env_file: .env
     volumes:
-      - ./ca.crt:/app/ca.crt:ro
+      - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
     networks:
       - backend
     develop:
