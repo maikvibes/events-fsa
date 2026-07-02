@@ -9,7 +9,7 @@ const body = argv[4] || 'If you see this, web push works end-to-end!';
 
 if (!token) {
   console.error('ERROR: provide the FCM device token.\n' +
-    '  node webpush-tester/send-direct.mjs <DEVICE_TOKEN> ["title"] ["body"]');
+    '  node scripts/send-direct.mjs <DEVICE_TOKEN> ["title"] ["body"]');
   exit(1);
 }
 
