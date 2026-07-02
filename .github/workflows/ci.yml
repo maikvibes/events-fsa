@@ -96,6 +96,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      security-events: write
     strategy:
       fail-fast: false
       matrix:
@@ -153,7 +154,7 @@ jobs:
           exit-code: "0"
 
       - name: Upload vulnerability scan results
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: trivy-results-${{ matrix.service }}.sarif
