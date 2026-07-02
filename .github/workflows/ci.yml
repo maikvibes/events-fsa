@@ -177,17 +177,17 @@ jobs:
           mkdir -p ~/.ssh
           printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          printf '%s\n' "${{ secrets.DEPLOY_HOST_KEY }}" > ~/.ssh/known_hosts
+          printf '%s\n' "${{ secrets.DEPLOY_HOST_KEY }}" | head -1 > ~/.ssh/known_hosts
           rsync -az --delete \
             --exclude='.git' --exclude='node_modules' --exclude='dist' --exclude='coverage' \
             --exclude='.env' --exclude='.env.*' --exclude='certs' --exclude='secrets' \
-            -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.DEPLOY_PORT }}" \
+            -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.DEPLOY_PORT }} -o HostKeyAlgorithms=ssh-ed25519" \
             ./ "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/events-fsa/"
 
       - name: Compute host key fingerprint
         id: hostkey
         run: |
-          printf '%s\n' "${{ secrets.DEPLOY_HOST_KEY }}" > /tmp/known_hosts_entry
+          printf '%s\n' "${{ secrets.DEPLOY_HOST_KEY }}" | head -1 > /tmp/known_hosts_entry
           echo "fingerprint=$(ssh-keygen -lf /tmp/known_hosts_entry | awk '{print $2}')" >> "$GITHUB_OUTPUT"
 
       - name: Pull images, build migrate, restart stack
