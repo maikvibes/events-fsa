@@ -167,30 +167,18 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     permissions:
-      contents: read
       packages: read
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Sync repo to server
-        run: |
-          mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          printf '%s\n' "${{ secrets.DEPLOY_HOST_KEY }}" | head -1 > ~/.ssh/known_hosts
-          rsync -az --delete \
-            --exclude='.git' --exclude='node_modules' --exclude='dist' --exclude='coverage' \
-            --exclude='.env' --exclude='.env.*' --exclude='certs' --exclude='secrets' \
-            -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.DEPLOY_PORT }} -o HostKeyAlgorithms=ssh-ed25519" \
-            ./ "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/events-fsa/"
-
       - name: Compute host key fingerprint
         id: hostkey
         run: |
           printf '%s\n' "${{ secrets.DEPLOY_HOST_KEY }}" | head -1 > /tmp/known_hosts_entry
           echo "fingerprint=$(ssh-keygen -lf /tmp/known_hosts_entry | awk '{print $2}')" >> "$GITHUB_OUTPUT"
 
-      - name: Pull images, build migrate, restart stack
+      # The repo is public, so the server pulls it straight from GitHub over
+      # HTTPS instead of the runner pushing files to it — simpler than rsync
+      # and needs no extra auth.
+      - name: Pull latest source, images, restart stack
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.DEPLOY_HOST }}
@@ -200,7 +188,20 @@ jobs:
           fingerprint: ${{ steps.hostkey.outputs.fingerprint }}
           envs: GHCR_TOKEN
           script: |
+            set -e
+            if [ ! -d /opt/events-fsa/.git ]; then
+              # First deploy: clone into a scratch dir and copy in, rather than
+              # cloning straight into /opt/events-fsa, so any .env already
+              # placed there by the server bootstrap step is left untouched.
+              rm -rf /tmp/events-fsa-init
+              git clone --quiet --branch dev https://github.com/maikvibes/events-fsa.git /tmp/events-fsa-init
+              mkdir -p /opt/events-fsa
+              cp -a /tmp/events-fsa-init/. /opt/events-fsa/
+              rm -rf /tmp/events-fsa-init
+            fi
             cd /opt/events-fsa
+            git fetch --quiet origin dev
+            git reset --hard origin/dev
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml build migrate
