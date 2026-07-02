@@ -166,16 +166,45 @@ jobs:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: production
+    permissions:
+      contents: read
+      packages: read
     steps:
-      - name: SSH deploy
+      - uses: actions/checkout@v4
+
+      - name: Sync repo to server
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "${{ secrets.DEPLOY_HOST_KEY }}" > ~/.ssh/known_hosts
+          rsync -az --delete \
+            --exclude='.git' --exclude='node_modules' --exclude='dist' --exclude='coverage' \
+            --exclude='.env' --exclude='.env.*' --exclude='certs' --exclude='secrets' \
+            -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.DEPLOY_PORT }}" \
+            ./ "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/events-fsa/"
+
+      - name: Compute host key fingerprint
+        id: hostkey
+        run: |
+          printf '%s\n' "${{ secrets.DEPLOY_HOST_KEY }}" > /tmp/known_hosts_entry
+          echo "fingerprint=$(ssh-keygen -lf /tmp/known_hosts_entry | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+      - name: Pull images, build migrate, restart stack
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT }}
+          fingerprint: ${{ steps.hostkey.outputs.fingerprint }}
+          envs: GHCR_TOKEN
           script: |
             cd /opt/events-fsa
-            docker compose pull
-            docker compose up -d
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml build migrate
+            docker compose -f docker-compose.prod.yml up -d
             docker image prune -f
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
