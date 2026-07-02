@@ -11,6 +11,20 @@ set -euo pipefail
 
 mkdir -p /var/log/kafka
 
+# apache/kafka uses ssl.keystore.password / ssl.key.password /
+# ssl.truststore.password (not the Confluent _CREDENTIALS file extension).
+# Read the cred files and export them as env vars before the broker starts.
+_SECRETS=/etc/kafka/secrets
+if [[ -f "$_SECRETS/kafka_keystore_creds" ]]; then
+  export KAFKA_SSL_KEYSTORE_PASSWORD=$(cat "$_SECRETS/kafka_keystore_creds")
+fi
+if [[ -f "$_SECRETS/kafka_key_creds" ]]; then
+  export KAFKA_SSL_KEY_PASSWORD=$(cat "$_SECRETS/kafka_key_creds")
+fi
+if [[ -f "$_SECRETS/kafka_truststore_creds" ]]; then
+  export KAFKA_SSL_TRUSTSTORE_PASSWORD=$(cat "$_SECRETS/kafka_truststore_creds")
+fi
+
 # apache/kafka does not put /opt/kafka/bin on PATH, so every CLI call below
 # needs the full path (with the .sh suffix the upstream distribution ships).
 KAFKA_BROKER_API_VERSIONS_BIN=/opt/kafka/bin/kafka-broker-api-versions.sh
