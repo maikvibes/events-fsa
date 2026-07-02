@@ -18,8 +18,8 @@ services:
     image: postgres:16-alpine
     <<: *restart
     user: "0:0"   # Entrypoint chowns PGDATA and execs as the postgres user.
-    expose:
-      - "5432"
+    ports:
+      - "5432:5432"
     environment:
       <<: *postgres-env
       POSTGRES_AUTH_USER: ${POSTGRES_AUTH_USER}
@@ -147,8 +147,8 @@ services:
     image: redis:7-alpine
     <<: *restart
     user: "0:0"   # Entrypoint chowns /data and execs redis-server as the redis user.
-    expose:
-      - "6379"
+    ports:
+      - "6379:6379"
     command:
       - "redis-server"
       - "/usr/local/etc/redis/redis.conf"
@@ -177,11 +177,8 @@ services:
         ipv4_address: 172.30.0.12
 
 networks:
-  # Internal: no egress to the host or the internet. Host-system nginx reaches
-  # the services by their fixed IPs below.
   backend:
     driver: bridge
-    internal: true
     ipam:
       config:
         - subnet: 172.30.0.0/24
