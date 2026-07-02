@@ -1,8 +1,3 @@
-name: events-fsa-infra
-
-# Infrastructure-only compose: postgres + kafka (KRaft, no ZooKeeper) + redis.
-# All three publish host ports directly — TLS is handled by each service.
-
 x-postgres-env: &postgres-env
   POSTGRES_USER: ${POSTGRES_SUPERUSER}
   POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD}
@@ -16,7 +11,9 @@ services:
   postgres:
     image: postgres:16-alpine
     <<: *restart
-    user: "0:0"   # Entrypoint chowns PGDATA and execs as the postgres user.
+    user: "0:0"
+    expose:
+      - "5432"
     ports:
       - "5432:5432"
     environment:
@@ -27,13 +24,14 @@ services:
       POSTGRES_EVENTS_PASSWORD: ${POSTGRES_EVENTS_PASSWORD}
       POSTGRES_NOTIFICATIONS_USER: ${POSTGRES_NOTIFICATIONS_USER}
       POSTGRES_NOTIFICATIONS_PASSWORD: ${POSTGRES_NOTIFICATIONS_PASSWORD}
+    env_file: .env
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-dbs.sql:/docker-entrypoint-initdb.d/00-init-dbs.sql:ro
       - ./scripts/init-roles.sh:/docker-entrypoint-initdb.d/10-init-roles.sh:ro
       - ./certs/postgres.crt:/etc/ssl/events-fsa/postgres.crt:ro
       - ./certs/postgres.key:/etc/ssl/events-fsa/postgres.key:ro
-      - ./certs/ca.crt:/etc/ssl/events-fsa/ca.crt:ro
+      - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
     entrypoint:
       - sh
       - -c
@@ -64,14 +62,13 @@ services:
       - "-c"
       - "shared_preload_libraries=passwordcheck"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_SUPERUSER} -d ${POSTGRES_SUPERUSER_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 30s
     security_opt:
       - "no-new-privileges:true"
-    read_only: false
     networks:
       backend:
         ipv4_address: 172.30.0.10
@@ -81,10 +78,12 @@ services:
     <<: *restart
     user: "0:0"
     expose:
-      - "29092"   # PLAINTEXT (inter-broker)
-      - "29093"   # SSL (in-cluster apps via docker network)
-      - "29094"   # SASL_SSL (external clients via nginx)
-      - "29095"   # CONTROLLER (KRaft Raft)
+      - "29092" # PLAINTEXT (inter-broker)
+      - "29093" # SSL (in-cluster apps via docker network)
+      - "29094" # SASL_SSL (external clients via nginx)
+      - "29095" # CONTROLLER (KRaft Raft)
+    ports:
+      - "29094:29094"
     environment:
       # KRaft: this node is both broker and controller (single-node combined mode)
       CLUSTER_ID: ${KAFKA_CLUSTER_ID:-QTk1NjcxYjhkZTVkNGU2M}
@@ -94,21 +93,20 @@ services:
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       # Log data directory (override the image default of /tmp/kraft-combined-logs)
       KAFKA_LOG_DIRS: /var/lib/kafka/data
-      # Four listeners:
-      #   PLAINTEXT  – inter-broker (in-cluster, no TLS)
+      # Three listeners:
+      #   PLAINTEXT  – inter-broker / controller (in-cluster, no TLS)
       #   SSL        – in-cluster app services connecting directly (TLS, no SASL)
       #   EXTERNAL   – internet clients via host nginx (SASL_SSL, SCRAM-SHA-256)
-      #   CONTROLLER – KRaft quorum traffic (in-cluster, no TLS)
       KAFKA_LISTENERS: PLAINTEXT://kafka:29092,SSL://kafka:29093,EXTERNAL://0.0.0.0:29094,CONTROLLER://kafka:29095
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,SSL://kafka:29093,EXTERNAL://${KAFKA_EXTERNAL_HOSTNAME:-localhost}:29094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,SSL://kafka:29093,EXTERNAL://localhost:29094
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,SSL:SSL,EXTERNAL:SASL_SSL,CONTROLLER:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_SASL_ENABLED_MECHANISMS: SCRAM-SHA-256
-      KAFKA_SSL_ENABLED_PROTOCOLS: TLSv1.2
+      KAFKA_SSL_ENABLED_PROTOCOLS: TLSv1.2,TLSv1.3
       KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
       KAFKA_SSL_KEYSTORE_TYPE: JKS
       KAFKA_SSL_TRUSTSTORE_TYPE: JKS
-      KAFKA_SSL_PROTOCOL: TLSv1.2
+      KAFKA_SSL_PROTOCOL: TLSv1.3
       KAFKA_SSL_CLIENT_AUTH: none
       KAFKA_SSL_KEYSTORE_FILENAME: kafka.server.keystore.jks
       KAFKA_SSL_KEYSTORE_CREDENTIALS: kafka_keystore_creds
@@ -125,7 +123,7 @@ services:
       KAFKA_DEFAULT_REPLICATION_FACTOR: 1
       KAFKA_MIN_INSYNC_REPLICAS: 1
       # KAFKA_OPTS (JAAS config for SASL) is set dynamically by kafka-init.sh
-      # Read by scripts/kafka-init.sh
+      # SASL credentials — used by kafka-init.sh when re-enabling SCRAM users
       KAFKA_ADMIN_USER: ${KAFKA_ADMIN_USER}
       KAFKA_ADMIN_PASSWORD: ${KAFKA_ADMIN_PASSWORD}
       KAFKA_APP_USER: ${KAFKA_APP_USER}
@@ -154,19 +152,22 @@ services:
   redis:
     image: redis:7-alpine
     <<: *restart
-    user: "0:0"   # Entrypoint chowns /data and execs redis-server as the redis user.
+    user: "0:0"
+    expose:
+      - "6379"
     ports:
-      - "6379:6379"
+      - "6380:6379"
     command:
       - "redis-server"
       - "/usr/local/etc/redis/redis.conf"
+    env_file: .env
     volumes:
       - redis_data:/data
       - ./scripts/redis.conf:/usr/local/etc/redis/redis.conf:ro
       - ./scripts/redis-acl.conf:/usr/local/etc/redis/users.acl:ro
       - ./certs/redis.crt:/etc/ssl/events-fsa/redis.crt:ro
       - ./certs/redis.key:/etc/ssl/events-fsa/redis.key:ro
-      - ./certs/ca.crt:/etc/ssl/events-fsa/ca.crt:ro
+      - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
     healthcheck:
       test:
         - "CMD-SHELL"
@@ -175,14 +176,159 @@ services:
       timeout: 5s
       retries: 10
       start_period: 20s
-    environment:
-      REDIS_HEALTH_USER: ${REDIS_HEALTH_USER}
-      REDIS_HEALTH_PASSWORD: ${REDIS_HEALTH_PASSWORD}
     security_opt:
       - "no-new-privileges:true"
     networks:
       backend:
         ipv4_address: 172.30.0.12
+
+  # ==========================================
+  # Frontend Service
+  # ==========================================
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: api-gateway
+    container_name: devops_apigateway_dev
+    ports:
+      - "3001:${PORT:-3000}"
+    env_file: .env
+    environment:
+      - NODE_ENV=development
+      - KAFKA_BROKER=kafka:29093
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    volumes:
+      - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
+    networks:
+      - backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    develop:
+      watch:
+        - path: ./apps/api-gateway
+          action: rebuild
+        - path: ./libs
+          action: rebuild
+        - path: ./package.json
+          action: rebuild
+        - path: ./Dockerfile
+          action: rebuild
+
+  auth:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: auth
+    container_name: devops_auth_dev
+    env_file: .env
+    environment:
+      - NODE_ENV=development
+      - KAFKA_BROKER=kafka:29093
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - AUTH_DATABASE_URL=postgresql://${POSTGRES_AUTH_USER}:${POSTGRES_AUTH_PASSWORD}@postgres:5432/auth_db?schema=public
+    volumes:
+      - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
+    networks:
+      - backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    develop:
+      watch:
+        - path: ./apps/auth
+          action: rebuild
+        - path: ./libs
+          action: rebuild
+        - path: ./package.json
+          action: rebuild
+        - path: ./Dockerfile
+          action: rebuild
+
+  events:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: events
+    container_name: devops_events_dev
+    env_file: .env
+    environment:
+      - NODE_ENV=development
+      - KAFKA_BROKER=kafka:29093
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - EVENTS_DATABASE_URL=postgresql://${POSTGRES_EVENTS_USER}:${POSTGRES_EVENTS_PASSWORD}@postgres:5432/events_db?schema=public
+    volumes:
+      - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
+    networks:
+      - backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    develop:
+      watch:
+        - path: ./apps/events
+          action: rebuild
+        - path: ./libs
+          action: rebuild
+        - path: ./package.json
+          action: rebuild
+        - path: ./Dockerfile
+          action: rebuild
+
+  notifications:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: notifications
+    container_name: devops_notifications_dev
+    env_file: .env
+    environment:
+      - NODE_ENV=development
+      - KAFKA_BROKER=kafka:29093
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - NOTIFICATIONS_DATABASE_URL=postgresql://${POSTGRES_NOTIFICATIONS_USER}:${POSTGRES_NOTIFICATIONS_PASSWORD}@postgres:5432/notifications_db?schema=public
+    volumes:
+      - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
+    networks:
+      - backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    develop:
+      watch:
+        - path: ./apps/notifications
+          action: rebuild
+        - path: ./libs
+          action: rebuild
+        - path: ./package.json
+          action: rebuild
+        - path: ./Dockerfile
+          action: rebuild
 
 networks:
   backend:

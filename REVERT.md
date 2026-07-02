@@ -33,11 +33,10 @@ docker compose -f docker-compose.infra.yml down
 ```
 
 What this does:
-- Stops and removes the `postgres`, `zookeeper`, `kafka`, `redis` containers
+- Stops and removes the `postgres`, `kafka`, `redis` containers
 - Removes the `events-fsa-infra_backend` docker network
-- **Keeps** the named volumes (`postgres_data`, `kafka_data`,
-  `redis_data`, `zookeeper_data`, `zookeeper_logs`) — your data is
-  preserved
+- **Keeps** the named volumes (`postgres_data`, `kafka_kraft_data`,
+  `redis_data`) — your data is preserved
 - **Keeps** every file under `nginx/certs/`, `secrets/`, and `.env`
 - **Keeps** every system-path change made by `bootstrap.sh`
 
@@ -62,9 +61,7 @@ What this does:
 - Everything from [Section 1](#1-soft-stop)
 - ⚠️ Deletes the named volumes:
   - `events-fsa-infra_postgres_data`
-  - `events-fsa-infra_zookeeper_data`
-  - `events-fsa-infra_zookeeper_logs`
-  - `events-fsa-infra_kafka_data`
+  - `events-fsa-infra_kafka_kraft_data`
   - `events-fsa-infra_redis_data`
 
 Generated certs, the `.env` file, and the system-path material are
@@ -152,14 +149,13 @@ an empty list and `sed` out the marker:
 echo "221205" | sudo -S sed -i '/^# events-fsa: managed by scripts\/generate-hosts.sh/,/^$/d' /etc/hosts
 ```
 
-Or open `/etc/hosts` and remove the four lines:
+Or open `/etc/hosts` and remove the marker line plus the three entries:
 
 ```
 # events-fsa: managed by scripts/generate-hosts.sh - do not edit
 172.30.0.10 postgres
 172.30.0.11 kafka
 172.30.0.12 redis
-172.30.0.13 zookeeper
 ```
 
 ### 3.6 Remove the libnginx-mod-stream module (optional)
