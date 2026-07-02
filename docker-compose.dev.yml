@@ -31,7 +31,7 @@ services:
       - ./scripts/init-roles.sh:/docker-entrypoint-initdb.d/10-init-roles.sh:ro
       - ./certs/postgres.crt:/etc/ssl/events-fsa/postgres.crt:ro
       - ./certs/postgres.key:/etc/ssl/events-fsa/postgres.key:ro
-      - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
+      - ./ca.crt:/app/ca.crt:ro
     entrypoint:
       - sh
       - -c
@@ -138,10 +138,10 @@ services:
       - ./scripts/kafka-init.sh:/usr/local/bin/kafka-init.sh:ro
     command: ["bash", "-c", "/usr/local/bin/kafka-init.sh"]
     healthcheck:
-      test: ["CMD-SHELL", "bash -c '</dev/tcp/kafka/29092' 2>/dev/null"]
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server kafka:29092 >/dev/null 2>&1"]
       interval: 15s
-      timeout: 5s
-      retries: 15
+      timeout: 10s
+      retries: 20
       start_period: 60s
     security_opt:
       - "no-new-privileges:true"
@@ -167,7 +167,7 @@ services:
       - ./scripts/redis-acl.conf:/usr/local/etc/redis/users.acl:ro
       - ./certs/redis.crt:/etc/ssl/events-fsa/redis.crt:ro
       - ./certs/redis.key:/etc/ssl/events-fsa/redis.key:ro
-      - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
+      - ./ca.crt:/app/ca.crt:ro
     healthcheck:
       test:
         - "CMD-SHELL"
@@ -201,7 +201,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     volumes:
-      - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
+      - ./ca.crt:/app/ca.crt:ro
     networks:
       - backend
     depends_on:
@@ -237,7 +237,7 @@ services:
       - REDIS_PORT=6379
       - AUTH_DATABASE_URL=postgresql://${POSTGRES_AUTH_USER}:${POSTGRES_AUTH_PASSWORD}@postgres:5432/auth_db?schema=public
     volumes:
-      - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
+      - ./ca.crt:/app/ca.crt:ro
     networks:
       - backend
     depends_on:
@@ -273,7 +273,7 @@ services:
       - REDIS_PORT=6379
       - EVENTS_DATABASE_URL=postgresql://${POSTGRES_EVENTS_USER}:${POSTGRES_EVENTS_PASSWORD}@postgres:5432/events_db?schema=public
     volumes:
-      - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
+      - ./ca.crt:/app/ca.crt:ro
     networks:
       - backend
     depends_on:
@@ -309,7 +309,7 @@ services:
       - REDIS_PORT=6379
       - NOTIFICATIONS_DATABASE_URL=postgresql://${POSTGRES_NOTIFICATIONS_USER}:${POSTGRES_NOTIFICATIONS_PASSWORD}@postgres:5432/notifications_db?schema=public
     volumes:
-      - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
+      - ./ca.crt:/app/ca.crt:ro
     networks:
       - backend
     depends_on:
