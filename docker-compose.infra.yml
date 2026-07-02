@@ -1,6 +1,6 @@
 name: events-fsa-infra
 
-# Infrastructure-only compose: postgres + zookeeper + kafka + redis.
+# Infrastructure-only compose: postgres + kafka (KRaft, no ZooKeeper) + redis.
 # Host-system nginx (managed by systemd) is the only entry point: see
 # INFRA.md. No host ports are published here.
 
@@ -68,60 +68,32 @@ services:
       backend:
         ipv4_address: 172.30.0.10
 
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.6.1
+  kafka:
+    image: apache/kafka:latest
     <<: *restart
     user: "0:0"
     expose:
-      - "2181"
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-      ZOOKEEPER_INIT_LIMIT: 10
-      ZOOKEEPER_SYNC_LIMIT: 5
-      ZOOKEEPER_AUTOPURGE_INTERVAL: 24
-      ZOOKEEPER_AUTOPURGE_RETAIN_COUNT: 5
-      ZOOKEEPER_LOG4J_ROOT_LOGLEVEL: WARN
-      # Enable the healthcheck four-letter-word "ruok". Default in 3.5+ is none.
-      # Passed as a JVM system property because the confluent template does not
-      # forward ZOOKEEPER_4LW_COMMANDS_WHITELIST to zookeeper.properties.
-      KAFKA_OPTS: "-Dzookeeper.4lw.commands.whitelist=ruok,srvr,stat"
-    volumes:
-      - zookeeper_data:/var/lib/zookeeper/data
-      - zookeeper_logs:/var/lib/zookeeper/log
-    healthcheck:
-      test: ["CMD-SHELL", "echo ruok | nc -w 2 localhost 2181 | grep -q imok"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
-    security_opt:
-      - "no-new-privileges:true"
-    networks:
-      backend:
-        ipv4_address: 172.30.0.13
-
-  kafka:
-    image: confluentinc/cp-kafka:7.6.1
-    <<: *restart
-    user: "0:0"   # The Confluent image does not chown its data volume; run as root.
-    depends_on:
-      zookeeper:
-        condition: service_healthy
-    expose:
-      - "29092"   # PLAINTEXT (inter-broker / controller)
+      - "29092"   # PLAINTEXT (inter-broker)
       - "29093"   # SSL (in-cluster apps via docker network)
       - "29094"   # SASL_SSL (external clients via nginx)
+      - "29095"   # CONTROLLER (KRaft Raft)
     environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      # Three listeners:
-      #   PLAINTEXT  – inter-broker / controller (in-cluster, no TLS)
+      # KRaft: this node is both broker and controller (single-node combined mode)
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID:-QTk1NjcxYjhkZTVkNGU2M}
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29095
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      # Log data directory (override the image default of /tmp/kraft-combined-logs)
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      # Four listeners:
+      #   PLAINTEXT  – inter-broker (in-cluster, no TLS)
       #   SSL        – in-cluster app services connecting directly (TLS, no SASL)
       #   EXTERNAL   – internet clients via host nginx (SASL_SSL, SCRAM-SHA-256)
-      KAFKA_LISTENERS: PLAINTEXT://kafka:29092,SSL://kafka:29093,EXTERNAL://0.0.0.0:29094
+      #   CONTROLLER – KRaft quorum traffic (in-cluster, no TLS)
+      KAFKA_LISTENERS: PLAINTEXT://kafka:29092,SSL://kafka:29093,EXTERNAL://0.0.0.0:29094,CONTROLLER://kafka:29095
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,SSL://kafka:29093,EXTERNAL://${KAFKA_EXTERNAL_HOSTNAME:-nginx.maik.io.vn}:9094
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,SSL:SSL,EXTERNAL:SASL_SSL
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,SSL:SSL,EXTERNAL:SASL_SSL,CONTROLLER:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_SASL_ENABLED_MECHANISMS: SCRAM-SHA-256
       KAFKA_SSL_ENABLED_PROTOCOLS: TLSv1.2
@@ -144,14 +116,14 @@ services:
       KAFKA_NUM_PARTITIONS: 3
       KAFKA_DEFAULT_REPLICATION_FACTOR: 1
       KAFKA_MIN_INSYNC_REPLICAS: 1
-      KAFKA_LOG4J_ROOT_LOGLEVEL: WARN
+      # KAFKA_OPTS (JAAS config for SASL) is set dynamically by kafka-init.sh
       # Read by scripts/kafka-init.sh
       KAFKA_ADMIN_USER: ${KAFKA_ADMIN_USER}
       KAFKA_ADMIN_PASSWORD: ${KAFKA_ADMIN_PASSWORD}
       KAFKA_APP_USER: ${KAFKA_APP_USER}
       KAFKA_APP_PASSWORD: ${KAFKA_APP_PASSWORD}
     volumes:
-      - kafka_data:/var/lib/kafka/data
+      - kafka_kraft_data:/var/lib/kafka/data
       - ./secrets/kafka/server.keystore.jks:/etc/kafka/secrets/kafka.server.keystore.jks:ro
       - ./secrets/kafka/server.truststore.jks:/etc/kafka/secrets/kafka.server.truststore.jks:ro
       - ./secrets/kafka/keystore_creds:/etc/kafka/secrets/kafka_keystore_creds:ro
@@ -160,9 +132,9 @@ services:
       - ./scripts/kafka-init.sh:/usr/local/bin/kafka-init.sh:ro
     command: ["bash", "-c", "/usr/local/bin/kafka-init.sh"]
     healthcheck:
-      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server kafka:29092 >/dev/null 2>&1"]
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/kafka/29092' 2>/dev/null"]
       interval: 15s
-      timeout: 10s
+      timeout: 5s
       retries: 15
       start_period: 60s
     security_opt:
@@ -190,7 +162,7 @@ services:
     healthcheck:
       test:
         - "CMD-SHELL"
-        - "redis-cli --tls --cacert /etc/ssl/events-fsa/ca.crt --user $$REDIS_HEALTH_USER --pass $$REDIS_HEALTH_PASSWORD --no-auth-warning PING | grep -q PONG"
+        - "redis-cli -h 127.0.0.1 -p 6379 --tls --cacert /etc/ssl/events-fsa/ca.crt --user $$REDIS_HEALTH_USER --pass $$REDIS_HEALTH_PASSWORD --no-auth-warning PING"
       interval: 10s
       timeout: 5s
       retries: 10
@@ -216,7 +188,5 @@ networks:
 
 volumes:
   postgres_data:
-  zookeeper_data:
-  zookeeper_logs:
-  kafka_data:
+  kafka_kraft_data:
   redis_data:
