@@ -53,6 +53,7 @@ echo "221205" | sudo -S chown 999:999 /etc/ssl/events-fsa/redis.key
 echo "221205" | sudo -S chown -R 1000:1000 /etc/ssl/events-fsa/kafka
 
 echo "[bootstrap] Enabling libnginx-mod-stream (stream block) ..."
+echo "221205" | sudo -S mkdir -p /etc/nginx/modules-available /etc/nginx/modules-enabled
 echo "221205" | sudo -S tee /etc/nginx/modules-available/50-mod-stream.conf >/dev/null <<EOF
 load_module modules/ngx_stream_module.so;
 EOF
@@ -64,7 +65,7 @@ if ! grep -q "events-fsa/stream.conf.d" /etc/nginx/nginx.conf 2>/dev/null; then
   echo "221205" | sudo -S bash -c "cat >> /etc/nginx/nginx.conf" < scripts/nginx-stream-block.conf
 fi
 
-echo "[bootstrap] Refreshing /etc/hosts for postgres / kafka / redis / zookeeper ..."
+echo "[bootstrap] Refreshing /etc/hosts for postgres / kafka / redis ..."
 ./scripts/generate-hosts.sh
 
 echo "[bootstrap] Validating nginx config and reloading ..."
