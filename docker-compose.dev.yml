@@ -29,8 +29,8 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-dbs.sql:/docker-entrypoint-initdb.d/00-init-dbs.sql:ro
       - ./scripts/init-roles.sh:/docker-entrypoint-initdb.d/10-init-roles.sh:ro
-      - ./nginx/certs/postgres.crt:/etc/ssl/events-fsa/postgres.crt:ro
-      - ./nginx/certs/postgres.key:/etc/ssl/events-fsa/postgres.key:ro
+      - ./certs/postgres.crt:/etc/ssl/events-fsa/postgres.crt:ro
+      - ./certs/postgres.key:/etc/ssl/events-fsa/postgres.key:ro
       - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
     entrypoint:
       - sh
@@ -165,8 +165,8 @@ services:
       - redis_data:/data
       - ./scripts/redis.conf:/usr/local/etc/redis/redis.conf:ro
       - ./scripts/redis-acl.conf:/usr/local/etc/redis/users.acl:ro
-      - ./nginx/certs/redis.crt:/etc/ssl/events-fsa/redis.crt:ro
-      - ./nginx/certs/redis.key:/etc/ssl/events-fsa/redis.key:ro
+      - ./certs/redis.crt:/etc/ssl/events-fsa/redis.crt:ro
+      - ./certs/redis.key:/etc/ssl/events-fsa/redis.key:ro
       - ./ca.crt:/etc/ssl/events-fsa/ca.crt:ro
     healthcheck:
       test:

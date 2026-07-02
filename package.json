@@ -32,7 +32,7 @@
     "prisma:studio:auth": "cd apps/auth && prisma studio",
     "prisma:studio:events": "cd apps/events && prisma studio",
     "prisma:studio:notifications": "cd apps/notifications && prisma studio",
-    "db:up": "docker compose up postgres redis kafka zookeeper -d",
+    "db:up": "docker compose up postgres redis kafka -d",
     "db:down": "docker compose down",
     "docker:up": "docker compose up --build -d",
     "docker:down": "docker compose down -v"

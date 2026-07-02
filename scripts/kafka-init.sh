@@ -1,6 +1,7 @@
 #!/bin/bash
 # Starts the Kafka broker, then creates SCRAM-SHA-256 users and ACLs
-# idempotently. Runs as PID 1 inside the container.
+# idempotently. Runs as PID 1 inside the container. Targets the official
+# apache/kafka image (KRaft mode, no ZooKeeper).
 set -euo pipefail
 
 : "${KAFKA_ADMIN_USER:?KAFKA_ADMIN_USER must be set}"
@@ -8,13 +9,17 @@ set -euo pipefail
 : "${KAFKA_APP_USER:?KAFKA_APP_USER must be set}"
 : "${KAFKA_APP_PASSWORD:?KAFKA_APP_PASSWORD must be set}"
 
-echo "[kafka-init] Rendering config from environment..."
-. /etc/confluent/docker/configure
+mkdir -p /var/log/kafka
 
-# The Confluent configure script sets KAFKA_OPTS=-Djava.security.auth.login.config=/dev/null
-# when it can't find a pre-built JAAS file. For the SASL_SSL EXTERNAL listener the broker
-# must have a KafkaServer entry — SCRAM stores credentials in ZooKeeper so no static
-# password is needed here.
+# apache/kafka does not put /opt/kafka/bin on PATH, so every CLI call below
+# needs the full path (with the .sh suffix the upstream distribution ships).
+KAFKA_BROKER_API_VERSIONS_BIN=/opt/kafka/bin/kafka-broker-api-versions.sh
+KAFKA_CONFIGS_BIN=/opt/kafka/bin/kafka-configs.sh
+KAFKA_ACLS_BIN=/opt/kafka/bin/kafka-acls.sh
+
+# A KafkaServer JAAS entry is required for the SASL_SSL EXTERNAL listener.
+# SCRAM stores credentials in the cluster metadata, so no static password is
+# needed in the JAAS file itself.
 if [[ -n "${KAFKA_SASL_ENABLED_MECHANISMS:-}" ]]; then
   _JAAS_FILE=/tmp/kafka_server_jaas.conf
   cat > "$_JAAS_FILE" <<'JAAS'
@@ -27,9 +32,10 @@ JAAS
 fi
 
 echo "[kafka-init] Starting broker..."
-mkdir -p /var/log/kafka
-# The configure script writes to /etc/kafka/kafka.properties (NOT server.properties).
-kafka-server-start /etc/kafka/kafka.properties >>/var/log/kafka/server.out 2>&1 &
+# /etc/kafka/docker/run is the image's native entrypoint chain
+# (configure + KRaft storage format + launch) — reimplementing that here
+# isn't worth it, so just run it and take over PID tracking for shutdown.
+/etc/kafka/docker/run >>/var/log/kafka/server.out 2>&1 &
 BROKER_PID=$!
 
 shutdown() {
@@ -41,14 +47,14 @@ trap shutdown INT TERM
 
 echo "[kafka-init] Waiting for broker to accept connections..."
 for _ in $(seq 1 90); do
-  if kafka-broker-api-versions --bootstrap-server kafka:29092 >/dev/null 2>&1; then
+  if "$KAFKA_BROKER_API_VERSIONS_BIN" --bootstrap-server kafka:29092 >/dev/null 2>&1; then
     echo "[kafka-init] Broker is up."
     break
   fi
   sleep 2
 done
 
-if ! kafka-broker-api-versions --bootstrap-server kafka:29092 >/dev/null 2>&1; then
+if ! "$KAFKA_BROKER_API_VERSIONS_BIN" --bootstrap-server kafka:29092 >/dev/null 2>&1; then
   echo "[kafka-init] ERROR: broker did not become ready." >&2
   tail -n 200 /var/log/kafka/server.out >&2 || true
   exit 1
@@ -61,7 +67,7 @@ if [[ -n "${KAFKA_SASL_ENABLED_MECHANISMS:-}" ]]; then
   create_scram() {
     local user="$1" pass="$2"
     echo "[kafka-init] Ensuring SCRAM user: $user"
-    kafka-configs --zookeeper zookeeper:2181 \
+    "$KAFKA_CONFIGS_BIN" --bootstrap-server kafka:29092 \
       --entity-type users \
       --entity-name "$user" \
       --add-config "SCRAM-SHA-256=[iterations=4096,password=${pass}]" \
@@ -73,7 +79,7 @@ if [[ -n "${KAFKA_SASL_ENABLED_MECHANISMS:-}" ]]; then
 
   add_acl() {
     local principal="$1"; shift
-    kafka-acls --authorizer-properties zookeeper.connect=zookeeper:2181 \
+    "$KAFKA_ACLS_BIN" --bootstrap-server kafka:29092 \
       --add --allow-principal "User:${principal}" "$@" 2>/dev/null || true
   }
 

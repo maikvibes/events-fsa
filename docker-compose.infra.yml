@@ -1,8 +1,7 @@
 name: events-fsa-infra
 
 # Infrastructure-only compose: postgres + kafka (KRaft, no ZooKeeper) + redis.
-# Host-system nginx (managed by systemd) is the only entry point: see
-# INFRA.md. No host ports are published here.
+# All three publish host ports directly — TLS is handled by each service.
 
 x-postgres-env: &postgres-env
   POSTGRES_USER: ${POSTGRES_SUPERUSER}
@@ -32,9 +31,18 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-dbs.sql:/docker-entrypoint-initdb.d/00-init-dbs.sql:ro
       - ./scripts/init-roles.sh:/docker-entrypoint-initdb.d/10-init-roles.sh:ro
-      - /etc/ssl/events-fsa/postgres.crt:/etc/ssl/events-fsa/postgres.crt:ro
-      - /etc/ssl/events-fsa/postgres.key:/etc/ssl/events-fsa/postgres.key:ro
-      - /etc/ssl/events-fsa/ca.crt:/etc/ssl/events-fsa/ca.crt:ro
+      - ./certs/postgres.crt:/etc/ssl/events-fsa/postgres.crt:ro
+      - ./certs/postgres.key:/etc/ssl/events-fsa/postgres.key:ro
+      - ./certs/ca.crt:/etc/ssl/events-fsa/ca.crt:ro
+    entrypoint:
+      - sh
+      - -c
+      - |
+        cp /etc/ssl/events-fsa/postgres.key /tmp/postgres.key
+        chown postgres:postgres /tmp/postgres.key
+        chmod 600 /tmp/postgres.key
+        exec docker-entrypoint.sh "$$@"
+      - sh
     command:
       - "postgres"
       - "-c"
@@ -42,7 +50,7 @@ services:
       - "-c"
       - "ssl_cert_file=/etc/ssl/events-fsa/postgres.crt"
       - "-c"
-      - "ssl_key_file=/etc/ssl/events-fsa/postgres.key"
+      - "ssl_key_file=/tmp/postgres.key"
       - "-c"
       - "ssl_ca_file=/etc/ssl/events-fsa/ca.crt"
       - "-c"
@@ -92,7 +100,7 @@ services:
       #   EXTERNAL   – internet clients via host nginx (SASL_SSL, SCRAM-SHA-256)
       #   CONTROLLER – KRaft quorum traffic (in-cluster, no TLS)
       KAFKA_LISTENERS: PLAINTEXT://kafka:29092,SSL://kafka:29093,EXTERNAL://0.0.0.0:29094,CONTROLLER://kafka:29095
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,SSL://kafka:29093,EXTERNAL://${KAFKA_EXTERNAL_HOSTNAME:-nginx.maik.io.vn}:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,SSL://kafka:29093,EXTERNAL://${KAFKA_EXTERNAL_HOSTNAME:-localhost}:29094
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,SSL:SSL,EXTERNAL:SASL_SSL,CONTROLLER:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_SASL_ENABLED_MECHANISMS: SCRAM-SHA-256
@@ -156,9 +164,9 @@ services:
       - redis_data:/data
       - ./scripts/redis.conf:/usr/local/etc/redis/redis.conf:ro
       - ./scripts/redis-acl.conf:/usr/local/etc/redis/users.acl:ro
-      - /etc/ssl/events-fsa/redis.crt:/etc/ssl/events-fsa/redis.crt:ro
-      - /etc/ssl/events-fsa/redis.key:/etc/ssl/events-fsa/redis.key:ro
-      - /etc/ssl/events-fsa/ca.crt:/etc/ssl/events-fsa/ca.crt:ro
+      - ./certs/redis.crt:/etc/ssl/events-fsa/redis.crt:ro
+      - ./certs/redis.key:/etc/ssl/events-fsa/redis.key:ro
+      - ./certs/ca.crt:/etc/ssl/events-fsa/ca.crt:ro
     healthcheck:
       test:
         - "CMD-SHELL"

@@ -12,7 +12,6 @@ SERVICE_IPS=(
   "172.30.0.10 postgres"
   "172.30.0.11 kafka"
   "172.30.0.12 redis"
-  "172.30.0.13 zookeeper"
 )
 
 MARKER="# events-fsa: managed by scripts/generate-hosts.sh - do not edit"
@@ -33,7 +32,7 @@ TMP="$(mktemp)"
 awk -v marker="$MARKER" '
   $0 == marker { in_block = 1; next }
   in_block && /^172\.30\./ { next }
-  in_block && /^(postgres|kafka|redis|zookeeper)[[:space:]]/ { next }
+  in_block && /^(postgres|kafka|redis)[[:space:]]/ { next }
   in_block && NF == 0 { in_block = 0; print; next }
   in_block { in_block = 0 }
   { print }
