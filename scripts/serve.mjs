@@ -1,10 +1,9 @@
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
-import { join, extname, normalize } from 'node:path';
+import { join, extname, normalize, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { dirname } from 'node:path';
 
-const ROOT = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', 'frontend', 'dist');
 const PORT = Number(process.env.PORT) || 8080;
 
 const MIME = {
@@ -13,6 +12,8 @@ const MIME = {
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.ico': 'image/x-icon',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
 };
 
 const server = createServer(async (req, res) => {
@@ -26,7 +27,17 @@ const server = createServer(async (req, res) => {
       return;
     }
 
-    const info = await stat(filePath);
+    let info;
+    try {
+      info = await stat(filePath);
+    } catch {
+      // SPA fallback: serve index.html for unknown paths
+      const index = join(ROOT, 'index.html');
+      const body = await readFile(index);
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(body);
+      return;
+    }
+
     if (!info.isFile()) {
       res.writeHead(404).end('Not found');
       return;
@@ -47,6 +58,7 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`webpush-tester serving on http://localhost:${PORT}`);
-  console.log(`Now expose it over HTTPS, e.g.:  ngrok http ${PORT}`);
+  console.log(`Serving frontend/dist on http://localhost:${PORT}`);
+  console.log(`For HTTPS (required for push notifications on non-localhost), expose via:`);
+  console.log(`  ngrok http ${PORT}`);
 });
