@@ -12,8 +12,37 @@ permissions:
   contents: read
 
 jobs:
+  changes:
+    name: Detect changed paths
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            app:
+              - 'apps/**'
+              - 'libs/**'
+              - 'prisma/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'Dockerfile'
+              - 'nest-cli.json'
+              - 'tsconfig*.json'
+
   analyze:
     name: Analyze (javascript-typescript)
+    needs: changes
+    # The scheduled weekly scan always runs full — only push/PR skip when no
+    # app code changed. always() overrides the default skip-on-skipped-need.
+    if: |
+      always() &&
+      (github.event_name == 'schedule' || needs.changes.outputs.app == 'true')
     runs-on: ubuntu-latest
     permissions:
       contents: read
