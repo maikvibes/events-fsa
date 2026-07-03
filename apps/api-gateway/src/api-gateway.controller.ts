@@ -134,7 +134,9 @@ export class ApiGatewayController {
 
   @ApiTags('Admin')
   @ApiBearerAuth('bearerAuth')
-  @ApiOperation({ summary: 'List recent notifications across all users (admin only)' })
+  @ApiOperation({
+    summary: 'List recent notifications across all users (admin only)',
+  })
   @ApiResponse({ status: 200, description: 'Notifications returned' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Admin only' })
