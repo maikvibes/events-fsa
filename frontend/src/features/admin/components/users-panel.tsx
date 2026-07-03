@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { ArrowDownIcon, ArrowUpIcon, SearchIcon, Trash2Icon, UsersIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -62,9 +62,15 @@ export function UsersPanel() {
 
   const search = useDebouncedValue(searchInput, 300)
 
-  useEffect(() => {
+  // Reset to the first page whenever a filter changes. Done during render (not
+  // in an effect) per React's "adjusting state on prop change" guidance — this
+  // also correctly handles the debounced `search`, which updates asynchronously.
+  const filterKey = `${search}|${role}|${createdFrom}|${createdTo}`
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
+  if (filterKey !== prevFilterKey) {
+    setPrevFilterKey(filterKey)
     setPage(1)
-  }, [search, role, createdFrom, createdTo])
+  }
 
   const users = useAdminUsers({
     page,
