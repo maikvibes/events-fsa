@@ -183,7 +183,7 @@ jobs:
     if: |
       needs.changes.outputs.services != '[]' &&
       needs.test.result == 'success' &&
-      (needs.migrations-check.result == 'success' || needs.migrations-check.result == 'skipped')
+      (needs['migrations-check'].result == 'success' || needs['migrations-check'].result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
       contents: read
