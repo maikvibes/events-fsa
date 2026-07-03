@@ -8,6 +8,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { NotificationsModule } from './notifications.module';
 import { kafkaBaseClientOptions } from '@app/shared/kafka-config';
 
+// pipeline check: confirms docker job actually runs for a single changed service
 async function bootstrap() {
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(
     NotificationsModule,
