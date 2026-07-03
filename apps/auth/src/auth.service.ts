@@ -4,7 +4,12 @@ import { RpcException } from '@nestjs/microservices';
 import * as crypto from 'crypto';
 import * as jwt from 'jsonwebtoken';
 import type { RegisterDto, LoginDto, ValidateTokenDto } from '@app/shared';
-import { AuthResponse, TokenPayload, KafkaTopics } from '@app/shared';
+import {
+  AuthResponse,
+  ProfileResponse,
+  TokenPayload,
+  KafkaTopics,
+} from '@app/shared';
 import { PrismaService } from './prisma.service';
 
 @Injectable()
@@ -55,6 +60,13 @@ export class AuthService {
     }
     const accessToken = this.signToken({ userId: user.id, email: user.email });
     return { userId: user.id, email: user.email, name: user.name, accessToken };
+  }
+
+  async getProfile(userId: string): Promise<ProfileResponse> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user)
+      throw new RpcException({ statusCode: 404, message: 'User not found' });
+    return { userId: user.id, email: user.email, name: user.name };
   }
 
   validateToken(dto: ValidateTokenDto): TokenPayload {

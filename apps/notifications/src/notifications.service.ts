@@ -250,16 +250,36 @@ export class NotificationsService implements OnModuleInit {
     dto: BroadcastDto,
   ): Promise<{ sent: number; failed: number }> {
     const all = await this.prisma.deviceToken.findMany({
-      select: {
-        token: true,
-      },
+      select: { token: true, userId: true },
     });
-    const tokens = all.map((t) => t.token);
-    if (!tokens.length) {
-      this.logger.warn('Broadcast: không có device token nào');
+    if (!all.length) {
+      this.logger.warn('Broadcast: no device tokens registered');
       return { sent: 0, failed: 0 };
     }
-    return this.sendMulticast({ tokens, ...dto });
+
+    const tokens = all.map((t) => t.token);
+    const userIds = [...new Set(all.map((t) => t.userId))];
+    const data = dto.eventId ? { ...dto.data, eventId: dto.eventId } : dto.data;
+
+    const result = await this.sendMulticast({
+      tokens,
+      title: dto.title,
+      body: dto.body,
+      data,
+    });
+
+    // One log row per recipient user (not per device), matching notifyFollowers.
+    await this.prisma.notificationLog.createMany({
+      data: userIds.map((userId) => ({
+        userId,
+        eventId: dto.eventId,
+        title: dto.title,
+        body: dto.body,
+        status: NotificationStatus.sent,
+      })),
+    });
+
+    return result;
   }
 
   async registerDeviceToken(

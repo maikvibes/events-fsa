@@ -72,12 +72,12 @@ export default function EventSection({
       ) : (
         <ul className="event-list">
           {events.map(event => (
-            <li key={event.id} className="event-list-item">
+            <li key={event.eventId} className="event-list-item">
               <div>
                 <div className="event-list-title">{event.title}</div>
                 <div className="muted">{new Date(event.date).toLocaleString()}</div>
               </div>
-              <button type="button" disabled={!isLoggedIn} onClick={() => onDeleteEvent(event.id)}>
+              <button type="button" disabled={!isLoggedIn} onClick={() => onDeleteEvent(event.eventId)}>
                 Delete
               </button>
             </li>

@@ -32,6 +32,7 @@ export class ApiGatewayService implements OnModuleInit {
     this.authClient.subscribeToResponseOf(AuthPatterns.REGISTER);
     this.authClient.subscribeToResponseOf(AuthPatterns.LOGIN);
     this.authClient.subscribeToResponseOf(AuthPatterns.VALIDATE_TOKEN);
+    this.authClient.subscribeToResponseOf(AuthPatterns.GET_PROFILE);
 
     this.eventsClient.subscribeToResponseOf(EventsPatterns.CREATE);
     this.eventsClient.subscribeToResponseOf(EventsPatterns.FIND_ALL);
@@ -68,6 +69,12 @@ export class ApiGatewayService implements OnModuleInit {
 
   login(dto: LoginDto) {
     return firstValueFrom(this.authClient.send(AuthPatterns.LOGIN, dto));
+  }
+
+  getProfile(userId: string) {
+    return firstValueFrom(
+      this.authClient.send(AuthPatterns.GET_PROFILE, { userId }),
+    );
   }
 
   createEvent(dto: CreateEventDto) {
@@ -136,6 +143,7 @@ export class ApiGatewayService implements OnModuleInit {
       title: dto.title,
       body: dto.body,
       data: dto.data,
+      eventId: dto.eventId,
       requestedBy,
       requestedAt: new Date(),
     };

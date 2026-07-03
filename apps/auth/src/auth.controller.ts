@@ -22,4 +22,9 @@ export class AuthController {
   validateToken(@Payload() dto: ValidateTokenDto) {
     return this.authService.validateToken(dto);
   }
+
+  @MessagePattern(AuthPatterns.GET_PROFILE)
+  getProfile(@Payload() dto: { userId: string }) {
+    return this.authService.getProfile(dto.userId);
+  }
 }

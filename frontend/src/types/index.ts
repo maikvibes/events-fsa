@@ -15,7 +15,7 @@ export interface LogEntry {
 }
 
 export interface EventItem {
-  id: string
+  eventId: string
   userId: string
   title: string
   description: string

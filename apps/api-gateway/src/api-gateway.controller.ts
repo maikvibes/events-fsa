@@ -95,6 +95,17 @@ export class ApiGatewayController {
     return this.apiGatewayService.login(dto);
   }
 
+  @ApiTags('Auth')
+  @ApiBearerAuth('bearerAuth')
+  @ApiOperation({ summary: "Get the current user's profile" })
+  @ApiResponse({ status: 200, description: 'Profile returned' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @Get('auth/profile')
+  getProfile(@CurrentUser() user: TokenPayload) {
+    return this.apiGatewayService.getProfile(user.userId);
+  }
+
   @ApiTags('Events')
   @ApiBearerAuth('bearerAuth')
   @ApiOperation({ summary: 'Create a new event (admin only)' })
