@@ -3,13 +3,20 @@ import { ConfigService } from '@nestjs/config';
 import { RpcException } from '@nestjs/microservices';
 import * as crypto from 'crypto';
 import * as jwt from 'jsonwebtoken';
-import type { RegisterDto, LoginDto, ValidateTokenDto } from '@app/shared';
+import type {
+  RegisterDto,
+  LoginDto,
+  ValidateTokenDto,
+  ListUsersQueryDto,
+} from '@app/shared';
 import {
   AuthResponse,
   ProfileResponse,
   TokenPayload,
   KafkaTopics,
   UserSummary,
+  PaginatedUsers,
+  Role,
 } from '@app/shared';
 import { PrismaService } from './prisma.service';
 
@@ -17,7 +24,7 @@ import { PrismaService } from './prisma.service';
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private readonly jwtSecret: string;
-  private readonly jwtExpiresIn = '7d';
+  private readonly jwtExpiresIn = '1h';
 
   constructor(
     private readonly prisma: PrismaService,
@@ -44,8 +51,18 @@ export class AuthService {
     this.logger.debug(
       `Emit ${KafkaTopics.AUTH_USER_CREATED} userId=${user.id}`,
     );
-    const accessToken = this.signToken({ userId: user.id, email: user.email });
-    return { userId: user.id, email: user.email, name: user.name, accessToken };
+    const accessToken = this.signToken({
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+    });
+    return {
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      accessToken,
+    };
   }
 
   async login(dto: LoginDto): Promise<AuthResponse> {
@@ -59,27 +76,48 @@ export class AuthService {
         message: 'Invalid credentials',
       });
     }
-    const accessToken = this.signToken({ userId: user.id, email: user.email });
-    return { userId: user.id, email: user.email, name: user.name, accessToken };
+    const accessToken = this.signToken({
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+    });
+    return {
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      accessToken,
+    };
   }
 
   async getProfile(userId: string): Promise<ProfileResponse> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user)
       throw new RpcException({ statusCode: 404, message: 'User not found' });
-    return { userId: user.id, email: user.email, name: user.name };
+    return {
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    };
   }
 
-  async findAll(): Promise<UserSummary[]> {
+  async findAll(query: ListUsersQueryDto = {}): Promise<PaginatedUsers> {
     const users = await this.prisma.user.findMany({
       orderBy: { createdAt: 'desc' },
     });
-    return users.map((u) => ({
-      userId: u.id,
-      email: u.email,
-      name: u.name,
-      createdAt: u.createdAt,
-    }));
+    return {
+      items: users.map((u) => ({
+        userId: u.id,
+        email: u.email,
+        name: u.name,
+        role: u.role,
+        createdAt: u.createdAt,
+      })),
+      total: users.length,
+      page: 1,
+      pageSize: users.length,
+    };
   }
 
   async deleteUser(userId: string): Promise<void> {
@@ -97,6 +135,7 @@ export class AuthService {
       return {
         userId: payload['userId'] as string,
         email: payload['email'] as string,
+        role: payload['role'] as Role,
       };
     } catch {
       throw new RpcException({
