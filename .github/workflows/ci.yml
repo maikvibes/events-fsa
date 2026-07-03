@@ -17,8 +17,32 @@ env:
   NODE_VERSION: "22"
 
 jobs:
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            app:
+              - 'apps/**'
+              - 'libs/**'
+              - 'prisma/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'Dockerfile'
+              - 'nest-cli.json'
+              - 'tsconfig*.json'
+
   test:
     name: Lint, build & test
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -51,6 +75,8 @@ jobs:
 
   migrations-check:
     name: Validate Prisma migrations
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -91,7 +117,8 @@ jobs:
 
   docker:
     name: Build & publish images
-    needs: [test, migrations-check]
+    needs: [changes, test, migrations-check]
+    if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -163,7 +190,11 @@ jobs:
   deploy:
     name: Deploy to server
     needs: docker
-    if: github.event_name == 'push'
+    # docker is skipped (not failed) when no app code changed — deploy should
+    # still run then, re-pulling the existing :dev images unchanged.
+    if: |
+      github.event_name == 'push' &&
+      (needs.docker.result == 'success' || needs.docker.result == 'skipped')
     runs-on: ubuntu-latest
     environment: production
     permissions:
