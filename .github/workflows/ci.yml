@@ -213,7 +213,18 @@ jobs:
             fi
             # Firebase creds are real external credentials, not generatable —
             # sourced from GitHub secrets and kept out of the repo entirely.
-            sed -i '/^FIREBASE_PROJECT_ID=/d;/^FIREBASE_PRIVATE_KEY=/d;/^FIREBASE_CLIENT_EMAIL=/d' .env
+            # Also strips orphaned PEM body/footer lines left behind by earlier
+            # deploys that wrote FIREBASE_PRIVATE_KEY with real (unescaped)
+            # newlines — those continuation lines don't start with FIREBASE_*
+            # so the first sed alone can't remove them.
+            sed -i \
+              -e '/^FIREBASE_PROJECT_ID=/d' \
+              -e '/^FIREBASE_PRIVATE_KEY=/d' \
+              -e '/^FIREBASE_CLIENT_EMAIL=/d' \
+              -e '/^-----BEGIN PRIVATE KEY-----/d' \
+              -e '/^-----END PRIVATE KEY-----/d' \
+              -e '/^[A-Za-z0-9+/]\{20,\}=*$/d' \
+              .env
             # .env has no multiline support, so the key's real newlines (however
             # the secret happens to be stored) must become literal \n escapes —
             # the app itself un-escapes them back to real newlines at runtime.
