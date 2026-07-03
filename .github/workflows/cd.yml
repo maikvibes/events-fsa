@@ -82,6 +82,9 @@ jobs:
             if [ ! -f .env ]; then
               bash scripts/generate-secrets.sh
             fi
+            # Backfill ADMIN_EMAILS on servers deployed before it existed —
+            # generate-secrets.sh only runs once, on first deploy.
+            grep -q '^ADMIN_EMAILS=' .env || echo 'ADMIN_EMAILS=admin@eventfsa.local' >> .env
             # Firebase creds are real external credentials, not generatable —
             # sourced from GitHub secrets and kept out of the repo entirely.
             # Also strips orphaned PEM body/footer lines left behind by earlier

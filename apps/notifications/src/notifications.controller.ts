@@ -7,6 +7,7 @@ import type {
   SendToUserDto,
   SendMulticastDto,
   EventCreatedEvent,
+  EventFollowerNotifyEvent,
   BroadcastDto,
   NotificationBroadcastEvent,
 } from '@app/shared';
@@ -65,5 +66,52 @@ export class NotificationsController {
       body: event.body,
       data: event.data,
     });
+  }
+
+  // Follower fanout — events-svc resolved followerUserIds itself (it owns the
+  // EventFollow table), we just need to push and log.
+  @EventPattern(KafkaTopics.EVENT_UPDATED_FOR_FOLLOWERS)
+  onEventUpdatedForFollowers(@Payload() event: EventFollowerNotifyEvent) {
+    return this.notificationsService.notifyFollowers(
+      event.followerUserIds,
+      event.title,
+      event.body,
+      event.eventId,
+    );
+  }
+
+  @EventPattern(KafkaTopics.EVENT_DELETED_FOR_FOLLOWERS)
+  onEventDeletedForFollowers(@Payload() event: EventFollowerNotifyEvent) {
+    return this.notificationsService.notifyFollowers(
+      event.followerUserIds,
+      event.title,
+      event.body,
+      event.eventId,
+    );
+  }
+
+  @EventPattern(KafkaTopics.EVENT_ANNOUNCEMENT)
+  onEventAnnouncement(@Payload() event: EventFollowerNotifyEvent) {
+    return this.notificationsService.notifyFollowers(
+      event.followerUserIds,
+      event.title,
+      event.body,
+      event.eventId,
+    );
+  }
+
+  @EventPattern(KafkaTopics.EVENT_REMINDER_DUE)
+  onEventReminderDue(@Payload() event: EventFollowerNotifyEvent) {
+    return this.notificationsService.notifyFollowers(
+      event.followerUserIds,
+      event.title,
+      event.body,
+      event.eventId,
+    );
+  }
+
+  @MessagePattern(NotificationsPatterns.FIND_BY_USER)
+  findByUser(@Payload() dto: { userId: string }) {
+    return this.notificationsService.findByUser(dto.userId);
   }
 }

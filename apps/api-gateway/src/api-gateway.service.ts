@@ -13,6 +13,7 @@ import {
   LoginDto,
   CreateEventDto,
   UpdateEventDto,
+  AnnounceEventDto,
   SendToUserDto,
   BroadcastDto,
   NotificationBroadcastEvent,
@@ -34,12 +35,21 @@ export class ApiGatewayService implements OnModuleInit {
 
     this.eventsClient.subscribeToResponseOf(EventsPatterns.CREATE);
     this.eventsClient.subscribeToResponseOf(EventsPatterns.FIND_ALL);
+    this.eventsClient.subscribeToResponseOf(
+      EventsPatterns.FIND_FOLLOWED_BY_USER,
+    );
     this.eventsClient.subscribeToResponseOf(EventsPatterns.FIND_ONE);
     this.eventsClient.subscribeToResponseOf(EventsPatterns.UPDATE);
     this.eventsClient.subscribeToResponseOf(EventsPatterns.DELETE);
+    this.eventsClient.subscribeToResponseOf(EventsPatterns.FOLLOW);
+    this.eventsClient.subscribeToResponseOf(EventsPatterns.UNFOLLOW);
+    this.eventsClient.subscribeToResponseOf(EventsPatterns.ANNOUNCE);
 
     this.notificationsClient.subscribeToResponseOf(
       NotificationsPatterns.SEND_TO_USER,
+    );
+    this.notificationsClient.subscribeToResponseOf(
+      NotificationsPatterns.FIND_BY_USER,
     );
     this.notificationsClient.subscribeToResponseOf(
       'notifications.register-token',
@@ -64,9 +74,19 @@ export class ApiGatewayService implements OnModuleInit {
     return firstValueFrom(this.eventsClient.send(EventsPatterns.CREATE, dto));
   }
 
-  findEventsByUser(userId: string) {
+  // Discovery browse — every event. callerUserId (if the request was
+  // authenticated) gets each item annotated with isFollowing.
+  findAllEvents(callerUserId?: string) {
     return firstValueFrom(
-      this.eventsClient.send(EventsPatterns.FIND_ALL, { userId }),
+      this.eventsClient.send(EventsPatterns.FIND_ALL, { callerUserId }),
+    );
+  }
+
+  // "My events" now means events the user follows, not events they created
+  // (event creation is admin-only).
+  findMyEvents(userId: string) {
+    return firstValueFrom(
+      this.eventsClient.send(EventsPatterns.FIND_FOLLOWED_BY_USER, { userId }),
     );
   }
 
@@ -84,6 +104,22 @@ export class ApiGatewayService implements OnModuleInit {
     return firstValueFrom(
       this.eventsClient.send(EventsPatterns.DELETE, { eventId, userId }),
     );
+  }
+
+  followEvent(userId: string, eventId: string) {
+    return firstValueFrom(
+      this.eventsClient.send(EventsPatterns.FOLLOW, { userId, eventId }),
+    );
+  }
+
+  unfollowEvent(userId: string, eventId: string) {
+    return firstValueFrom(
+      this.eventsClient.send(EventsPatterns.UNFOLLOW, { userId, eventId }),
+    );
+  }
+
+  announceEvent(dto: AnnounceEventDto) {
+    return firstValueFrom(this.eventsClient.send(EventsPatterns.ANNOUNCE, dto));
   }
 
   sendNotification(dto: SendToUserDto) {
@@ -118,6 +154,14 @@ export class ApiGatewayService implements OnModuleInit {
         userId,
         token,
         platform,
+      }),
+    );
+  }
+
+  listMyNotifications(userId: string) {
+    return firstValueFrom(
+      this.notificationsClient.send(NotificationsPatterns.FIND_BY_USER, {
+        userId,
       }),
     );
   }

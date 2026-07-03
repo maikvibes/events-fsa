@@ -5,6 +5,13 @@ export enum KafkaTopics {
   EVENT_CREATED = 'event.created',
   EVENT_UPDATED = 'event.updated',
   EVENT_DELETED = 'event.deleted',
+  // Follower-fanout topics: emitted alongside the raw EVENT_UPDATED/DELETED
+  // above, carrying the pre-resolved follower list so notifications-svc never
+  // has to query events-svc's database directly.
+  EVENT_UPDATED_FOR_FOLLOWERS = 'event.updated.for-followers',
+  EVENT_DELETED_FOR_FOLLOWERS = 'event.deleted.for-followers',
+  EVENT_ANNOUNCEMENT = 'event.announcement',
+  EVENT_REMINDER_DUE = 'event.reminder-due',
   NOTIFICATION_SENT = 'notification.sent',
   NOTIFICATION_FAILED = 'notification.failed',
   NOTIFICATION_BROADCAST = 'notification.broadcast',
@@ -51,6 +58,16 @@ export interface EventDeletedEvent {
   eventId: string;
   userId: string;
   deletedAt: Date;
+}
+
+// Shared shape for every follower-fanout topic (update/delete/announce/reminder)
+// — events-svc resolves followerUserIds itself since notifications-svc can't
+// query events-svc's database.
+export interface EventFollowerNotifyEvent {
+  eventId: string;
+  title: string;
+  body: string;
+  followerUserIds: string[];
 }
 
 export interface NotificationSentEvent {

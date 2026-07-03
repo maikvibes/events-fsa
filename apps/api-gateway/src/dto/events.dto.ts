@@ -1,5 +1,9 @@
 import { createZodDto } from 'nestjs-zod';
-import { CreateEventSchema, UpdateEventSchema } from '@app/shared';
+import {
+  CreateEventSchema,
+  UpdateEventSchema,
+  AnnounceEventSchema,
+} from '@app/shared';
 import { z } from 'zod';
 
 // z.coerce.date() can't be serialized to JSON Schema in Zod v4.
@@ -16,4 +20,8 @@ export class UpdateEventBodyDto extends createZodDto(
   UpdateEventSchema.omit({ userId: true, eventId: true }).extend({
     date: z.string().optional().describe('ISO 8601 datetime string'),
   }),
+) {}
+
+export class AnnounceEventBodyDto extends createZodDto(
+  AnnounceEventSchema.omit({ eventId: true }),
 ) {}

@@ -8,13 +8,27 @@ datasource db {
 }
 
 model Event {
-  id          String   @id @default(uuid())
-  userId      String
-  title       String
-  description String
-  date        DateTime
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String        @id @default(uuid())
+  userId         String
+  title          String
+  description    String
+  date           DateTime
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  reminderSentAt DateTime?
+  follows        EventFollow[]
 
   @@index([userId])
+}
+
+model EventFollow {
+  id        String   @id @default(uuid())
+  userId    String
+  eventId   String
+  createdAt DateTime @default(now())
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+  @@index([userId])
+  @@index([eventId])
 }

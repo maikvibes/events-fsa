@@ -38,6 +38,8 @@ jobs:
               - 'Dockerfile'
               - 'nest-cli.json'
               - 'tsconfig*.json'
+              - 'frontend/**'
+              - 'scripts/generate-sw.mjs'
 
   test:
     name: Lint, build & test
@@ -127,7 +129,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [api-gateway, auth, events, events-app, notifications]
+        service: [api-gateway, auth, events, events-app, notifications, frontend]
     steps:
       - uses: actions/checkout@v7
 
@@ -159,12 +161,23 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Select Dockerfile
+        id: dockerfile
+        run: |
+          if [ "${{ matrix.service }}" = "frontend" ]; then
+            echo "path=./frontend/Dockerfile" >> "$GITHUB_OUTPUT"
+            echo "build_args=" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=./Dockerfile" >> "$GITHUB_OUTPUT"
+            echo "build_args=SERVICE_NAME=${{ matrix.service }}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build image
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: ./Dockerfile
-          build-args: SERVICE_NAME=${{ matrix.service }}
+          file: ${{ steps.dockerfile.outputs.path }}
+          build-args: ${{ steps.dockerfile.outputs.build_args }}
           push: ${{ github.event_name != 'pull_request' }}
           load: ${{ github.event_name == 'pull_request' }}
           tags: ${{ steps.vars.outputs.tags }}

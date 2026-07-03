@@ -8,6 +8,8 @@ import type {
   DeleteEventDto,
   FindEventDto,
   FindEventsByUserDto,
+  FollowEventDto,
+  AnnounceEventDto,
 } from '@app/shared';
 
 @Controller()
@@ -20,8 +22,13 @@ export class EventsController {
   }
 
   @MessagePattern(EventsPatterns.FIND_ALL)
-  findAll(@Payload() dto: FindEventsByUserDto) {
-    return this.eventsService.findAll(dto);
+  findAll(@Payload() dto: { callerUserId?: string }) {
+    return this.eventsService.findAll(dto.callerUserId);
+  }
+
+  @MessagePattern(EventsPatterns.FIND_FOLLOWED_BY_USER)
+  findFollowedByUser(@Payload() dto: FindEventsByUserDto) {
+    return this.eventsService.findFollowedByUser(dto);
   }
 
   @MessagePattern(EventsPatterns.FIND_ONE)
@@ -37,5 +44,20 @@ export class EventsController {
   @MessagePattern(EventsPatterns.DELETE)
   delete(@Payload() dto: DeleteEventDto) {
     return this.eventsService.delete(dto);
+  }
+
+  @MessagePattern(EventsPatterns.FOLLOW)
+  follow(@Payload() dto: FollowEventDto) {
+    return this.eventsService.follow(dto);
+  }
+
+  @MessagePattern(EventsPatterns.UNFOLLOW)
+  unfollow(@Payload() dto: FollowEventDto) {
+    return this.eventsService.unfollow(dto);
+  }
+
+  @MessagePattern(EventsPatterns.ANNOUNCE)
+  announce(@Payload() dto: AnnounceEventDto) {
+    return this.eventsService.announce(dto);
   }
 }

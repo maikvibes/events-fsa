@@ -120,6 +120,14 @@ services:
       redis:
         condition: service_healthy
 
+  frontend:
+    image: ghcr.io/maikvibes/events-fsa-frontend:${IMAGE_TAG:-dev}
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    networks:
+      - backend
+
   auth:
     image: ghcr.io/maikvibes/events-fsa-auth:${IMAGE_TAG:-dev}
     restart: unless-stopped

@@ -205,6 +205,47 @@ export class NotificationsService implements OnModuleInit {
     return { sent, failed };
   }
 
+  // Shared by the update/delete/announcement/reminder fanout paths — resolves
+  // every follower's device tokens in one query, since we already have the
+  // userId list (events-svc resolved it, we can't query its DB ourselves).
+  async notifyFollowers(
+    userIds: string[],
+    title: string,
+    body: string,
+    eventId?: string,
+  ): Promise<{ sent: number; failed: number }> {
+    if (!userIds.length) return { sent: 0, failed: 0 };
+
+    const deviceTokens = await this.prisma.deviceToken.findMany({
+      where: { userId: { in: userIds } },
+    });
+    const tokens = deviceTokens.map((t) => t.token);
+    const result = tokens.length
+      ? await this.sendMulticast({ tokens, title, body })
+      : { sent: 0, failed: 0 };
+
+    // One log row per follower (not per device) so /notifications/me shows a
+    // single entry per notification.
+    await this.prisma.notificationLog.createMany({
+      data: userIds.map((userId) => ({
+        userId,
+        eventId,
+        title,
+        body,
+        status: NotificationStatus.sent,
+      })),
+    });
+
+    return result;
+  }
+
+  async findByUser(userId: string) {
+    return this.prisma.notificationLog.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   async broadcast(
     dto: BroadcastDto,
   ): Promise<{ sent: number; failed: number }> {

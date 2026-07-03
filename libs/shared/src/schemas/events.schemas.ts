@@ -30,8 +30,21 @@ export const FindEventsByUserSchema = z.object({
   userId: z.uuid(),
 });
 
+export const FollowEventSchema = z.object({
+  eventId: z.uuid(),
+  userId: z.uuid(),
+});
+
+export const AnnounceEventSchema = z.object({
+  eventId: z.uuid(),
+  title: z.string().min(1).max(200).trim(),
+  body: z.string().min(1).max(1000).trim(),
+});
+
 export type CreateEventDto = z.infer<typeof CreateEventSchema>;
 export type UpdateEventDto = z.infer<typeof UpdateEventSchema>;
 export type DeleteEventDto = z.infer<typeof DeleteEventSchema>;
 export type FindEventDto = z.infer<typeof FindEventSchema>;
 export type FindEventsByUserDto = z.infer<typeof FindEventsByUserSchema>;
+export type FollowEventDto = z.infer<typeof FollowEventSchema>;
+export type AnnounceEventDto = z.infer<typeof AnnounceEventSchema>;
