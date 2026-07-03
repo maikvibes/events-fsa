@@ -20,7 +20,10 @@ const notifBodyMeta = {
 const notifDataMeta = {
   description:
     'Optional key/value payload delivered with the push (string values only).',
-  example: { eventId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', type: 'reminder' },
+  example: {
+    eventId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+    type: 'reminder',
+  },
 };
 const notifEventIdMeta = {
   description: 'Optional UUID of the related event.',
@@ -29,7 +32,7 @@ const notifEventIdMeta = {
 
 export const SendToUserSchema = z.object({
   userId: z.uuid().meta({
-    description: "UUID of the recipient user whose devices receive the push.",
+    description: 'UUID of the recipient user whose devices receive the push.',
     example: '11111111-2222-3333-4444-555555555555',
   }),
   title: z.string().min(1).max(100).meta(notifTitleMeta),

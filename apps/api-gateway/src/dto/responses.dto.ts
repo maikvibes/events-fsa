@@ -21,7 +21,8 @@ const AuthData = z.object({
   email: z.email().meta({ example: 'ada.lovelace@fsa.dev' }),
   name: z.string().meta({ example: 'Ada Lovelace' }),
   accessToken: z.string().meta({
-    description: 'Signed JWT (valid 7 days). Send as `Authorization: Bearer <token>`.',
+    description:
+      'Signed JWT (valid 7 days). Send as `Authorization: Bearer <token>`.',
     example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
   }),
 });
@@ -63,9 +64,7 @@ export class EventListResponseDto extends createZodDto(
 ) {}
 
 export class HealthResponseDto extends createZodDto(
-  envelope(
-    z.object({ status: z.literal('ok').meta({ example: 'ok' }) }),
-  ),
+  envelope(z.object({ status: z.literal('ok').meta({ example: 'ok' }) })),
 ) {}
 
 export class SendNotificationResponseDto extends createZodDto(

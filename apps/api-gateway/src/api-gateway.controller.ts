@@ -67,7 +67,8 @@ export class ApiGatewayController {
   @ApiTags('Health')
   @ApiOperation({
     summary: 'Health check',
-    description: 'Public liveness probe. Returns `{ status: "ok" }` when the gateway is reachable.',
+    description:
+      'Public liveness probe. Returns `{ status: "ok" }` when the gateway is reachable.',
   })
   @ApiResponse({
     status: 200,
@@ -140,13 +141,21 @@ export class ApiGatewayController {
     description: 'Creates an event owned by the authenticated user.',
   })
   @ApiBody({ type: CreateEventBodyDto })
-  @ApiResponse({ status: 201, description: 'Event created', type: EventResponseDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Event created',
+    type: EventResponseDto,
+  })
   @ApiResponse({
     status: 400,
     description: 'Validation error',
     type: ErrorResponseDto,
   })
-  @ApiResponse({ status: 401, description: 'Unauthorized', type: ErrorResponseDto })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
   @Post('events')
   @UsePipes(new ZodValidationPipe(CreateEventSchema.omit({ userId: true })))
   createEvent(
@@ -160,14 +169,19 @@ export class ApiGatewayController {
   @ApiBearerAuth('bearerAuth')
   @ApiOperation({
     summary: "List the current user's events",
-    description: 'Returns all events owned by the authenticated user, ordered by date.',
+    description:
+      'Returns all events owned by the authenticated user, ordered by date.',
   })
   @ApiResponse({
     status: 200,
     description: 'Events returned',
     type: EventListResponseDto,
   })
-  @ApiResponse({ status: 401, description: 'Unauthorized', type: ErrorResponseDto })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
   @Get('events/me')
   findMyEvents(@CurrentUser() user: TokenPayload) {
     return this.apiGatewayService.findEventsByUser(user.userId);
@@ -182,8 +196,16 @@ export class ApiGatewayController {
     format: 'uuid',
     example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
   })
-  @ApiResponse({ status: 200, description: 'Event found', type: EventResponseDto })
-  @ApiResponse({ status: 401, description: 'Unauthorized', type: ErrorResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Event found',
+    type: EventResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
   @ApiResponse({
     status: 404,
     description: 'Event not found',
@@ -198,7 +220,8 @@ export class ApiGatewayController {
   @ApiBearerAuth('bearerAuth')
   @ApiOperation({
     summary: 'Update an event',
-    description: 'Updates one or more fields of an event owned by the authenticated user.',
+    description:
+      'Updates one or more fields of an event owned by the authenticated user.',
   })
   @ApiParam({
     name: 'eventId',
@@ -207,13 +230,21 @@ export class ApiGatewayController {
     example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
   })
   @ApiBody({ type: UpdateEventBodyDto })
-  @ApiResponse({ status: 200, description: 'Event updated', type: EventResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Event updated',
+    type: EventResponseDto,
+  })
   @ApiResponse({
     status: 400,
     description: 'Validation error',
     type: ErrorResponseDto,
   })
-  @ApiResponse({ status: 401, description: 'Unauthorized', type: ErrorResponseDto })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
   @ApiResponse({
     status: 404,
     description: 'Event not found',
@@ -254,7 +285,11 @@ export class ApiGatewayController {
     description: 'Event deleted',
     type: DeleteEventResponseDto,
   })
-  @ApiResponse({ status: 401, description: 'Unauthorized', type: ErrorResponseDto })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
   @ApiResponse({
     status: 404,
     description: 'Event not found',
@@ -273,7 +308,7 @@ export class ApiGatewayController {
   @ApiOperation({
     summary: "Send a push notification to a specific user's devices",
     description:
-      'Admin only. Resolves the recipient\'s device tokens server-side and multicasts. Returns per-device delivery counts.',
+      "Admin only. Resolves the recipient's device tokens server-side and multicasts. Returns per-device delivery counts.",
   })
   @ApiBody({ type: SendNotificationBodyDto })
   @ApiResponse({
@@ -286,8 +321,16 @@ export class ApiGatewayController {
     description: 'Validation error',
     type: ErrorResponseDto,
   })
-  @ApiResponse({ status: 401, description: 'Unauthorized', type: ErrorResponseDto })
-  @ApiResponse({ status: 403, description: 'Admin only', type: ErrorResponseDto })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Admin only',
+    type: ErrorResponseDto,
+  })
   @UseGuards(AdminGuard)
   @Post('notifications/send')
   @UsePipes(new ZodValidationPipe(SendToUserSchema))
@@ -316,8 +359,16 @@ export class ApiGatewayController {
     description: 'Validation error',
     type: ErrorResponseDto,
   })
-  @ApiResponse({ status: 401, description: 'Unauthorized', type: ErrorResponseDto })
-  @ApiResponse({ status: 403, description: 'Admin only', type: ErrorResponseDto })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Admin only',
+    type: ErrorResponseDto,
+  })
   @UseGuards(AdminGuard)
   @HttpCode(202)
   @Post('notifications/broadcast')
@@ -349,7 +400,11 @@ export class ApiGatewayController {
     description: 'Validation error',
     type: ErrorResponseDto,
   })
-  @ApiResponse({ status: 401, description: 'Unauthorized', type: ErrorResponseDto })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
   @Post('notifications/register-token')
   @UsePipes(
     new ZodValidationPipe(RegisterDeviceTokenSchema.omit({ userId: true })),

@@ -7,7 +7,8 @@ import { z } from 'zod';
 export class CreateEventBodyDto extends createZodDto(
   CreateEventSchema.omit({ userId: true }).extend({
     date: z.string().meta({
-      description: 'Event start time as an ISO 8601 datetime. Must be in the future.',
+      description:
+        'Event start time as an ISO 8601 datetime. Must be in the future.',
       example: '2026-09-01T18:30:00.000Z',
     }),
   }),

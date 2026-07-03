@@ -21,14 +21,14 @@ export const CreateEventSchema = z.object({
   userId: z.uuid().meta(userIdMeta),
   title: z.string().min(1).max(200).trim().meta(titleMeta),
   description: z.string().min(1).max(2000).trim().meta(descriptionMeta),
-  date: z
-    .coerce
+  date: z.coerce
     .date()
     .refine((d) => d > new Date(), {
       message: 'Event date must be in the future',
     })
     .meta({
-      description: 'Event start time as an ISO 8601 datetime. Must be in the future.',
+      description:
+        'Event start time as an ISO 8601 datetime. Must be in the future.',
       example: '2026-09-01T18:30:00.000Z',
     }),
 });
@@ -37,7 +37,13 @@ export const UpdateEventSchema = z.object({
   eventId: z.uuid().meta(eventIdMeta),
   userId: z.uuid().meta(userIdMeta),
   title: z.string().min(1).max(200).trim().optional().meta(titleMeta),
-  description: z.string().min(1).max(2000).trim().optional().meta(descriptionMeta),
+  description: z
+    .string()
+    .min(1)
+    .max(2000)
+    .trim()
+    .optional()
+    .meta(descriptionMeta),
   date: z.coerce.date().optional().meta({
     description: 'New event start time as an ISO 8601 datetime.',
     example: '2026-09-01T18:30:00.000Z',
