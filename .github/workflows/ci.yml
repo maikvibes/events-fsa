@@ -83,13 +83,13 @@ jobs:
         id: services
         run: |
           nest_apps=()
-          for svc in api-gateway auth events events-app notifications; do
-            if [ "${{ steps.filter.outputs[svc] }}" = "true" ]; then
-              nest_apps+=("$svc")
-            fi
-          done
+          [ "${{ steps.filter.outputs['api-gateway'] }}" = "true" ] && nest_apps+=("api-gateway")
+          [ "${{ steps.filter.outputs['auth'] }}" = "true" ] && nest_apps+=("auth")
+          [ "${{ steps.filter.outputs['events'] }}" = "true" ] && nest_apps+=("events")
+          [ "${{ steps.filter.outputs['events-app'] }}" = "true" ] && nest_apps+=("events-app")
+          [ "${{ steps.filter.outputs['notifications'] }}" = "true" ] && nest_apps+=("notifications")
           services=("${nest_apps[@]}")
-          if [ "${{ steps.filter.outputs.frontend }}" = "true" ]; then
+          if [ "${{ steps.filter.outputs['frontend'] }}" = "true" ]; then
             services+=("frontend")
           fi
           nest_json=$(printf '%s\n' "${nest_apps[@]}" | jq -R . | jq -s -c .)
