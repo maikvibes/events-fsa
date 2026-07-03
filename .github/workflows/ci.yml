@@ -100,7 +100,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [api-gateway, auth, events, notifications]
+        service: [api-gateway, auth, events, events-app, notifications]
     steps:
       - uses: actions/checkout@v4
 
@@ -169,10 +169,16 @@ jobs:
     permissions:
       packages: read
     steps:
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
       - name: Compute host key fingerprint
         id: hostkey
         run: |
-          printf '%s\n' "${{ secrets.DEPLOY_HOST_KEY }}" | head -1 > /tmp/known_hosts_entry
+          echo "${{ secrets.DEPLOY_HOST_KEY }}" > /tmp/known_hosts_entry
           echo "fingerprint=$(ssh-keygen -lf /tmp/known_hosts_entry | awk '{print $2}')" >> "$GITHUB_OUTPUT"
 
       # The repo is public, so the server pulls it straight from GitHub over
@@ -183,7 +189,7 @@ jobs:
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          key_path: ~/.ssh/deploy_key
           port: ${{ secrets.DEPLOY_PORT }}
           fingerprint: ${{ steps.hostkey.outputs.fingerprint }}
           envs: GHCR_TOKEN,FIREBASE_PROJECT_ID,FIREBASE_PRIVATE_KEY,FIREBASE_CLIENT_EMAIL
