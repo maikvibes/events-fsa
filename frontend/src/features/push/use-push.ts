@@ -24,7 +24,11 @@ export function usePush() {
     }
     try {
       setStatus('registering')
-      const swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js')
+      await navigator.serviceWorker.register('/firebase-messaging-sw.js')
+      // Wait until the service worker is actually active — otherwise getToken's
+      // internal PushManager.subscribe fails with "no active Service Worker" on
+      // the first enable (registration resolves before the worker activates).
+      const swReg = await navigator.serviceWorker.ready
       const fcmToken = await getToken(messaging, { serviceWorkerRegistration: swReg })
       if (!fcmToken) {
         setStatus('error')
