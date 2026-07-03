@@ -34,6 +34,7 @@ import type {
   CreateEventDto,
   UpdateEventDto,
   SendNotificationDto,
+  RegisterDeviceTokenDto,
 } from '@app/shared';
 import { RegisterBodyDto, LoginBodyDto } from './dto/auth.dto';
 import { CreateEventBodyDto, UpdateEventBodyDto } from './dto/events.dto';
@@ -91,8 +92,11 @@ export class ApiGatewayController {
   @ApiResponse({ status: 400, description: 'Validation error' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @Post('events')
-  @UsePipes(new ZodValidationPipe(CreateEventSchema))
-  createEvent(@Body() dto: CreateEventDto, @CurrentUser() user: TokenPayload) {
+  @UsePipes(new ZodValidationPipe(CreateEventSchema.omit({ userId: true })))
+  createEvent(
+    @Body() dto: Omit<CreateEventDto, 'userId'>,
+    @CurrentUser() user: TokenPayload,
+  ) {
     return this.apiGatewayService.createEvent({ ...dto, userId: user.userId });
   }
 
@@ -138,8 +142,12 @@ export class ApiGatewayController {
   @Put('events/:eventId')
   updateEvent(
     @Param('eventId', ParseUUIDPipe) eventId: string,
-    @Body(new ZodValidationPipe(UpdateEventSchema))
-    dto: Omit<UpdateEventDto, 'eventId'>,
+    @Body(
+      new ZodValidationPipe(
+        UpdateEventSchema.omit({ userId: true, eventId: true }),
+      ),
+    )
+    dto: Omit<UpdateEventDto, 'eventId' | 'userId'>,
     @CurrentUser() user: TokenPayload,
   ) {
     return this.apiGatewayService.updateEvent({
@@ -176,9 +184,17 @@ export class ApiGatewayController {
   @ApiResponse({ status: 400, description: 'Validation error' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @Post('notifications/send')
-  @UsePipes(new ZodValidationPipe(SendNotificationSchema))
-  sendNotification(@Body() dto: SendNotificationDto) {
-    return this.apiGatewayService.sendNotification(dto);
+  @UsePipes(
+    new ZodValidationPipe(SendNotificationSchema.omit({ userId: true })),
+  )
+  sendNotification(
+    @Body() dto: Omit<SendNotificationDto, 'userId'>,
+    @CurrentUser() user: TokenPayload,
+  ) {
+    return this.apiGatewayService.sendNotification({
+      ...dto,
+      userId: user.userId,
+    });
   }
 
   @ApiTags('Notifications')
@@ -189,10 +205,15 @@ export class ApiGatewayController {
   @ApiResponse({ status: 400, description: 'Validation error' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @Post('notifications/register-token')
-  @UsePipes(new ZodValidationPipe(RegisterDeviceTokenSchema))
-  registerDeviceToken(@Body() dto: RegisterDeviceTokenBodyDto) {
+  @UsePipes(
+    new ZodValidationPipe(RegisterDeviceTokenSchema.omit({ userId: true })),
+  )
+  registerDeviceToken(
+    @Body() dto: Omit<RegisterDeviceTokenDto, 'userId'>,
+    @CurrentUser() user: TokenPayload,
+  ) {
     return this.apiGatewayService.registerDeviceToken(
-      dto.userId,
+      user.userId,
       dto.token,
       dto.platform,
     );

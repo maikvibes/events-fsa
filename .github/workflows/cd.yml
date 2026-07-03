@@ -1,0 +1,117 @@
+name: CD
+
+# Runs after CI finishes on dev, rather than on push directly — deploying an
+# app-code change that CI hasn't actually validated is how a broken
+# TypeScript build made it to prod. workflow_run only fires for runs of the
+# CI workflow whose head_branch is dev (PR runs use the PR's branch name and
+# are filtered out below).
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [dev]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cd-${{ github.event.workflow_run.head_branch }}
+  # Never cancel a deploy mid-flight — a later push should queue behind it,
+  # not tear down the SSH session partway through docker compose up.
+  cancel-in-progress: false
+
+jobs:
+  debug:
+    name: Debug workflow_run payload
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "conclusion=${{ github.event.workflow_run.conclusion }}"
+          echo "status=${{ github.event.workflow_run.status }}"
+          echo "head_branch=${{ github.event.workflow_run.head_branch }}"
+          echo "event=${{ github.event.workflow_run.event }}"
+
+  deploy:
+    name: Deploy to server
+    needs: debug
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      packages: read
+    steps:
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+      - name: Compute host key fingerprint
+        id: hostkey
+        run: |
+          echo "${{ secrets.DEPLOY_HOST_KEY }}" > /tmp/known_hosts_entry
+          echo "fingerprint=$(ssh-keygen -lf /tmp/known_hosts_entry | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+      # The repo is public, so the server pulls it straight from GitHub over
+      # HTTPS instead of the runner pushing files to it — simpler than rsync
+      # and needs no extra auth.
+      - name: Pull latest source, images, restart stack
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key_path: /home/runner/.ssh/deploy_key
+          port: ${{ secrets.DEPLOY_PORT }}
+          fingerprint: ${{ steps.hostkey.outputs.fingerprint }}
+          envs: GHCR_TOKEN,FIREBASE_PROJECT_ID,FIREBASE_PRIVATE_KEY,FIREBASE_CLIENT_EMAIL
+          script: |
+            set -e
+            if [ ! -d /opt/events-fsa/.git ]; then
+              # First deploy: clone into a scratch dir and copy in, rather than
+              # cloning straight into /opt/events-fsa, so any .env already
+              # placed there by the server bootstrap step is left untouched.
+              rm -rf /tmp/events-fsa-init
+              git clone --quiet --branch dev https://github.com/maikvibes/events-fsa.git /tmp/events-fsa-init
+              mkdir -p /opt/events-fsa
+              cp -a /tmp/events-fsa-init/. /opt/events-fsa/
+              rm -rf /tmp/events-fsa-init
+            fi
+            cd /opt/events-fsa
+            git fetch --quiet origin dev
+            git reset --hard origin/dev
+            if [ ! -f .env ]; then
+              bash scripts/generate-secrets.sh
+            fi
+            # Firebase creds are real external credentials, not generatable —
+            # sourced from GitHub secrets and kept out of the repo entirely.
+            # Also strips orphaned PEM body/footer lines left behind by earlier
+            # deploys that wrote FIREBASE_PRIVATE_KEY with real (unescaped)
+            # newlines — those continuation lines don't start with FIREBASE_*
+            # so the first sed alone can't remove them.
+            sed -i \
+              -e '/^FIREBASE_PROJECT_ID=/d' \
+              -e '/^FIREBASE_PRIVATE_KEY=/d' \
+              -e '/^FIREBASE_CLIENT_EMAIL=/d' \
+              -e '/^-----BEGIN PRIVATE KEY-----/d' \
+              -e '/^-----END PRIVATE KEY-----/d' \
+              -e '/^[A-Za-z0-9+/]\{20,\}=*$/d' \
+              .env
+            # .env has no multiline support, so the key's real newlines (however
+            # the secret happens to be stored) must become literal \n escapes —
+            # the app itself un-escapes them back to real newlines at runtime.
+            FIREBASE_PRIVATE_KEY_ESCAPED=$(printf '%s' "$FIREBASE_PRIVATE_KEY" | sed ':a;N;$!ba;s/\n/\\n/g')
+            {
+              echo "FIREBASE_PROJECT_ID=$FIREBASE_PROJECT_ID"
+              echo "FIREBASE_PRIVATE_KEY=\"$FIREBASE_PRIVATE_KEY_ESCAPED\""
+              echo "FIREBASE_CLIENT_EMAIL=$FIREBASE_CLIENT_EMAIL"
+            } >> .env
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml build migrate
+            docker compose -f docker-compose.prod.yml up -d
+            docker image prune -f
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
