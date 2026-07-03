@@ -1,14 +1,21 @@
 name: CD
 
+# Runs after CI finishes on dev, rather than on push directly — deploying an
+# app-code change that CI hasn't actually validated is how a broken
+# TypeScript build made it to prod. workflow_run only fires for runs of the
+# CI workflow whose head_branch is dev (PR runs use the PR's branch name and
+# are filtered out below).
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [dev]
 
 permissions:
   contents: read
 
 concurrency:
-  group: cd-${{ github.ref }}
+  group: cd-${{ github.event.workflow_run.head_branch }}
   # Never cancel a deploy mid-flight — a later push should queue behind it,
   # not tear down the SSH session partway through docker compose up.
   cancel-in-progress: false
@@ -16,6 +23,7 @@ concurrency:
 jobs:
   deploy:
     name: Deploy to server
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     environment: production
     permissions:
