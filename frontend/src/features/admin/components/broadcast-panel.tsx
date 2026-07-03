@@ -21,7 +21,7 @@ const messageSchema = z.object({
 type MessageValues = z.infer<typeof messageSchema>
 
 export function BroadcastPanel() {
-  const users = useAdminUsers()
+  const users = useAdminUsers({ pageSize: 100, sortBy: 'name', sortOrder: 'asc' })
   const broadcast = useBroadcast()
   const sendToUser = useSendNotification()
   const [recipient, setRecipient] = useState<string>('')
@@ -93,7 +93,7 @@ export function BroadcastPanel() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      {(users.data ?? []).map((u) => (
+                      {(users.data?.items ?? []).map((u) => (
                         <SelectItem key={u.userId} value={u.userId}>
                           {u.name} ({u.email})
                         </SelectItem>
