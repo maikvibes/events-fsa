@@ -121,7 +121,7 @@ export default function MainApp({
       <div className="tab-panel">
         {activeTab === 'device' && (
           <DeviceSection
-            isLoggedIn={true}
+            isLoggedIn={isLoggedIn}
             deviceToken={deviceToken}
             deviceStatus={deviceStatus}
             onEnable={onEnable}
@@ -129,7 +129,7 @@ export default function MainApp({
         )}
         {activeTab === 'event' && (
           <EventSection
-            isLoggedIn={true}
+            isLoggedIn={isLoggedIn}
             eventTitle={eventTitle}
             setEventTitle={setEventTitle}
             eventDesc={eventDesc}
@@ -145,7 +145,7 @@ export default function MainApp({
         )}
         {activeTab === 'send' && (
           <SendSection
-            isLoggedIn={true}
+            isLoggedIn={isLoggedIn}
             sendUserId={sendUserId}
             setSendUserId={setSendUserId}
             sendDeviceToken={sendDeviceToken}

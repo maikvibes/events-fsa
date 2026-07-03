@@ -33,8 +33,8 @@ export function useEvent({ token, addLog }: UseEventParams) {
   }, [token, addLog])
 
   useEffect(() => {
-    loadEvents()
-  }, [loadEvents])
+    if (token) loadEvents()
+  }, [token, loadEvents])
 
   async function createEvent() {
     const title = eventTitle.trim()
