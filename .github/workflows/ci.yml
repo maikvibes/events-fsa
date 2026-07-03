@@ -214,9 +214,13 @@ jobs:
             # Firebase creds are real external credentials, not generatable —
             # sourced from GitHub secrets and kept out of the repo entirely.
             sed -i '/^FIREBASE_PROJECT_ID=/d;/^FIREBASE_PRIVATE_KEY=/d;/^FIREBASE_CLIENT_EMAIL=/d' .env
+            # .env has no multiline support, so the key's real newlines (however
+            # the secret happens to be stored) must become literal \n escapes —
+            # the app itself un-escapes them back to real newlines at runtime.
+            FIREBASE_PRIVATE_KEY_ESCAPED=$(printf '%s' "$FIREBASE_PRIVATE_KEY" | sed ':a;N;$!ba;s/\n/\\n/g')
             {
               echo "FIREBASE_PROJECT_ID=$FIREBASE_PROJECT_ID"
-              echo "FIREBASE_PRIVATE_KEY=\"$FIREBASE_PRIVATE_KEY\""
+              echo "FIREBASE_PRIVATE_KEY=\"$FIREBASE_PRIVATE_KEY_ESCAPED\""
               echo "FIREBASE_CLIENT_EMAIL=$FIREBASE_CLIENT_EMAIL"
             } >> .env
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
