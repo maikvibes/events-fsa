@@ -8,7 +8,6 @@ import { ValidationPipe } from '@nestjs/common';
 import { NotificationsModule } from './notifications.module';
 import { kafkaBaseClientOptions } from '@app/shared/kafka-config';
 
-// pipeline smoke test: confirms only the notifications image rebuilds/redeploys
 async function bootstrap() {
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(
     NotificationsModule,
