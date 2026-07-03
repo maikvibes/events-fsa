@@ -8,7 +8,10 @@ import { ValidationPipe } from '@nestjs/common';
 import { NotificationsModule } from './notifications.module';
 import { kafkaBaseClientOptions } from '@app/shared/kafka-config';
 
-// pipeline check: confirms docker job actually runs for a single changed service
+// force image rebuild: the FIND_ALL handler never shipped because the commit
+// that added it failed CI lint, so this service kept running its
+// pre-admin-panel image after the next (lint-fix-only) push only rebuilt
+// api-gateway.
 async function bootstrap() {
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(
     NotificationsModule,

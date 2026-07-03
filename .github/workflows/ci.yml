@@ -114,8 +114,15 @@ jobs:
 
       - run: npm run prisma:generate
 
+      # continue-on-error: a lint failure here previously caused the whole job
+      # (and, transitively, the docker publish job) to be skipped — that's how
+      # the admin-panel commit silently shipped an api-gateway image with no
+      # matching auth/notifications images, since only the *next* commit's
+      # (unrelated) path diff triggered their rebuild. Lint issues should be
+      # visible, not able to block a deploy.
       - name: Lint
         run: npx eslint "{src,apps,libs,test}/**/*.ts"
+        continue-on-error: true
 
       - name: Build changed apps
         run: |
