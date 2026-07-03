@@ -105,9 +105,9 @@ export class ApiGatewayController {
   @ApiResponse({ status: 403, description: 'Admin only' })
   @UseGuards(AdminGuard)
   @Post('events')
-  @UsePipes(new ZodValidationPipe(CreateEventSchema.omit({ userId: true })))
   createEvent(
-    @Body() dto: Omit<CreateEventDto, 'userId'>,
+    @Body(new ZodValidationPipe(CreateEventSchema.omit({ userId: true })))
+    dto: Omit<CreateEventDto, 'userId'>,
     @CurrentUser() user: TokenPayload,
   ) {
     return this.apiGatewayService.createEvent({ ...dto, userId: user.userId });
@@ -256,10 +256,10 @@ export class ApiGatewayController {
   @ApiResponse({ status: 403, description: 'Admin only' })
   @UseGuards(AdminGuard)
   @Post('events/:eventId/announce')
-  @UsePipes(new ZodValidationPipe(AnnounceEventSchema.omit({ eventId: true })))
   announceEvent(
     @Param('eventId', ParseUUIDPipe) eventId: string,
-    @Body() dto: { title: string; body: string },
+    @Body(new ZodValidationPipe(AnnounceEventSchema.omit({ eventId: true })))
+    dto: { title: string; body: string },
   ) {
     return this.apiGatewayService.announceEvent({ ...dto, eventId });
   }
@@ -297,9 +297,8 @@ export class ApiGatewayController {
   @UseGuards(AdminGuard)
   @HttpCode(202)
   @Post('notifications/broadcast')
-  @UsePipes(new ZodValidationPipe(BroadcastSchema))
   async broadcast(
-    @Body() dto: BroadcastDto,
+    @Body(new ZodValidationPipe(BroadcastSchema)) dto: BroadcastDto,
     @CurrentUser() user: TokenPayload,
   ) {
     // Fire-and-forget: enqueue and return 202; the worker fans out to all devices.
@@ -315,11 +314,13 @@ export class ApiGatewayController {
   @ApiResponse({ status: 400, description: 'Validation error' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @Post('notifications/register-token')
-  @UsePipes(
-    new ZodValidationPipe(RegisterDeviceTokenSchema.omit({ userId: true })),
-  )
   registerDeviceToken(
-    @Body() dto: Omit<RegisterDeviceTokenDto, 'userId'>,
+    @Body(
+      new ZodValidationPipe(
+        RegisterDeviceTokenSchema.omit({ userId: true }),
+      ),
+    )
+    dto: Omit<RegisterDeviceTokenDto, 'userId'>,
     @CurrentUser() user: TokenPayload,
   ) {
     return this.apiGatewayService.registerDeviceToken(
