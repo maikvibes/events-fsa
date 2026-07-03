@@ -1,0 +1,3 @@
+[submodule "mobile"]
+	path = mobile
+	url = https://github.com/ManhDev24/Event-fsa-mobie.git
