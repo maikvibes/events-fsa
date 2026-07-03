@@ -30,6 +30,7 @@
     "prisma:migrate:all": "npm run prisma:migrate:auth && npm run prisma:migrate:events && npm run prisma:migrate:notifications",
     "prisma:migrate:deploy": "cd apps/auth && prisma migrate deploy && cd ../events && prisma migrate deploy && cd ../notifications && prisma migrate deploy",
     "seed": "node --env-file=.env -r ts-node/register/transpile-only scripts/seed.ts",
+    "seed:admin-roles": "node --env-file=.env -r ts-node/register/transpile-only scripts/seed-admin-roles.ts",
     "prisma:studio:auth": "cd apps/auth && prisma studio",
     "prisma:studio:events": "cd apps/events && prisma studio",
     "prisma:studio:notifications": "cd apps/notifications && prisma studio",
