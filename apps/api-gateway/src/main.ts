@@ -13,7 +13,10 @@ async function bootstrap() {
   const allowedOrigins = process.env.CORS_ORIGIN?.split(',') ?? [];
   app.enableCors({
     origin: allowedOrigins.length
-      ? (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => {
+      ? (
+          origin: string | undefined,
+          cb: (err: Error | null, allow?: boolean) => void,
+        ) => {
           if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
           cb(new Error('Not allowed by CORS'));
         }
