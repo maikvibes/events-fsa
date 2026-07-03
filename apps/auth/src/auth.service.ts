@@ -128,6 +128,24 @@ export class AuthService {
     }
   }
 
+  async updateUserRole(userId: string, role: Role): Promise<UserSummary> {
+    try {
+      const user = await this.prisma.user.update({
+        where: { id: userId },
+        data: { role },
+      });
+      return {
+        userId: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        createdAt: user.createdAt,
+      };
+    } catch {
+      throw new RpcException({ statusCode: 404, message: 'User not found' });
+    }
+  }
+
   validateToken(dto: ValidateTokenDto): TokenPayload {
     this.logger.log('Validating token');
     try {

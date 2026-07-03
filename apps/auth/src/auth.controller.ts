@@ -1,8 +1,13 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { AuthService } from './auth.service';
-import { AuthPatterns } from '@app/shared';
-import type { RegisterDto, LoginDto, ValidateTokenDto } from '@app/shared';
+import { AuthPatterns, Role } from '@app/shared';
+import type {
+  RegisterDto,
+  LoginDto,
+  ValidateTokenDto,
+  ListUsersQueryDto,
+} from '@app/shared';
 
 @Controller()
 export class AuthController {
@@ -29,12 +34,17 @@ export class AuthController {
   }
 
   @MessagePattern(AuthPatterns.LIST_USERS)
-  listUsers() {
-    return this.authService.findAll();
+  listUsers(@Payload() query: ListUsersQueryDto) {
+    return this.authService.findAll(query);
   }
 
   @MessagePattern(AuthPatterns.DELETE_USER)
   deleteUser(@Payload() dto: { userId: string }) {
     return this.authService.deleteUser(dto.userId);
+  }
+
+  @MessagePattern(AuthPatterns.UPDATE_USER_ROLE)
+  updateUserRole(@Payload() dto: { userId: string; role: Role }) {
+    return this.authService.updateUserRole(dto.userId, dto.role);
   }
 }

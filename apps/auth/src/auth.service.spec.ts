@@ -108,4 +108,28 @@ describe('AuthService', () => {
 
     expect(result.role).toBe('admin');
   });
+
+  it('updates a user role', async () => {
+    prisma.user.update.mockResolvedValue({
+      id: 'u1',
+      email: 'user@example.com',
+      name: 'A User',
+      role: 'admin',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
+
+    const result = await service.updateUserRole('u1', 'admin');
+
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'u1' },
+      data: { role: 'admin' },
+    });
+    expect(result.role).toBe('admin');
+  });
+
+  it('throws on updateUserRole when the user does not exist', async () => {
+    prisma.user.update.mockRejectedValue(new Error('not found'));
+
+    await expect(service.updateUserRole('missing', 'admin')).rejects.toThrow();
+  });
 });
