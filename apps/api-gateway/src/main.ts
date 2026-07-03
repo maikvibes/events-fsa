@@ -30,7 +30,6 @@ async function bootstrap() {
       { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
       'bearerAuth',
     )
-    .addServer(`http://localhost:${process.env.PORT ?? 3000}`, 'Local')
     .build();
 
   const document = cleanupOpenApiDoc(
