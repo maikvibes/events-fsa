@@ -48,14 +48,32 @@ import {
   RegisterDeviceTokenBodyDto,
   BroadcastBodyDto,
 } from './dto/notifications.dto';
+import {
+  AuthResponseDto,
+  EventResponseDto,
+  EventListResponseDto,
+  HealthResponseDto,
+  SendNotificationResponseDto,
+  BroadcastResponseDto,
+  RegisterTokenResponseDto,
+  DeleteEventResponseDto,
+  ErrorResponseDto,
+} from './dto/responses.dto';
 
 @Controller()
 export class ApiGatewayController {
   constructor(private readonly apiGatewayService: ApiGatewayService) {}
 
   @ApiTags('Health')
-  @ApiOperation({ summary: 'Health check' })
-  @ApiResponse({ status: 200, description: 'Gateway is reachable' })
+  @ApiOperation({
+    summary: 'Health check',
+    description: 'Public liveness probe. Returns `{ status: "ok" }` when the gateway is reachable.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Gateway is reachable',
+    type: HealthResponseDto,
+  })
   @Public()
   @Get('health')
   health() {
@@ -63,11 +81,27 @@ export class ApiGatewayController {
   }
 
   @ApiTags('Auth')
-  @ApiOperation({ summary: 'Register a new user' })
+  @ApiOperation({
+    summary: 'Register a new user',
+    description:
+      'Creates an account and returns the user profile together with a JWT access token.',
+  })
   @ApiBody({ type: RegisterBodyDto })
-  @ApiResponse({ status: 201, description: 'User registered successfully' })
-  @ApiResponse({ status: 400, description: 'Validation error' })
-  @ApiResponse({ status: 409, description: 'Email already in use' })
+  @ApiResponse({
+    status: 201,
+    description: 'User registered successfully',
+    type: AuthResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation error',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Email already in use',
+    type: ErrorResponseDto,
+  })
   @Public()
   @Post('auth/register')
   @UsePipes(new ZodValidationPipe(RegisterSchema))
@@ -76,13 +110,22 @@ export class ApiGatewayController {
   }
 
   @ApiTags('Auth')
-  @ApiOperation({ summary: 'Login and receive JWT token' })
+  @ApiOperation({
+    summary: 'Login and receive JWT token',
+    description:
+      'Validates credentials and returns the user profile with a JWT access token valid for 7 days.',
+  })
   @ApiBody({ type: LoginBodyDto })
   @ApiResponse({
     status: 200,
     description: 'Login successful, returns access token',
+    type: AuthResponseDto,
   })
-  @ApiResponse({ status: 401, description: 'Invalid credentials' })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid credentials',
+    type: ErrorResponseDto,
+  })
   @Public()
   @Post('auth/login')
   @UsePipes(new ZodValidationPipe(LoginSchema))
@@ -92,11 +135,18 @@ export class ApiGatewayController {
 
   @ApiTags('Events')
   @ApiBearerAuth('bearerAuth')
-  @ApiOperation({ summary: 'Create a new event' })
+  @ApiOperation({
+    summary: 'Create a new event',
+    description: 'Creates an event owned by the authenticated user.',
+  })
   @ApiBody({ type: CreateEventBodyDto })
-  @ApiResponse({ status: 201, description: 'Event created' })
-  @ApiResponse({ status: 400, description: 'Validation error' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 201, description: 'Event created', type: EventResponseDto })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation error',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized', type: ErrorResponseDto })
   @Post('events')
   @UsePipes(new ZodValidationPipe(CreateEventSchema.omit({ userId: true })))
   createEvent(
@@ -108,9 +158,16 @@ export class ApiGatewayController {
 
   @ApiTags('Events')
   @ApiBearerAuth('bearerAuth')
-  @ApiOperation({ summary: "List the current user's events" })
-  @ApiResponse({ status: 200, description: 'Events returned' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiOperation({
+    summary: "List the current user's events",
+    description: 'Returns all events owned by the authenticated user, ordered by date.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Events returned',
+    type: EventListResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized', type: ErrorResponseDto })
   @Get('events/me')
   findMyEvents(@CurrentUser() user: TokenPayload) {
     return this.apiGatewayService.findEventsByUser(user.userId);
@@ -123,10 +180,15 @@ export class ApiGatewayController {
     name: 'eventId',
     description: 'UUID of the event',
     format: 'uuid',
+    example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
   })
-  @ApiResponse({ status: 200, description: 'Event found' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Event not found' })
+  @ApiResponse({ status: 200, description: 'Event found', type: EventResponseDto })
+  @ApiResponse({ status: 401, description: 'Unauthorized', type: ErrorResponseDto })
+  @ApiResponse({
+    status: 404,
+    description: 'Event not found',
+    type: ErrorResponseDto,
+  })
   @Get('events/:eventId')
   findEvent(@Param('eventId', ParseUUIDPipe) eventId: string) {
     return this.apiGatewayService.findEvent(eventId);
@@ -134,17 +196,29 @@ export class ApiGatewayController {
 
   @ApiTags('Events')
   @ApiBearerAuth('bearerAuth')
-  @ApiOperation({ summary: 'Update an event' })
+  @ApiOperation({
+    summary: 'Update an event',
+    description: 'Updates one or more fields of an event owned by the authenticated user.',
+  })
   @ApiParam({
     name: 'eventId',
     description: 'UUID of the event',
     format: 'uuid',
+    example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
   })
   @ApiBody({ type: UpdateEventBodyDto })
-  @ApiResponse({ status: 200, description: 'Event updated' })
-  @ApiResponse({ status: 400, description: 'Validation error' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Event not found' })
+  @ApiResponse({ status: 200, description: 'Event updated', type: EventResponseDto })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation error',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized', type: ErrorResponseDto })
+  @ApiResponse({
+    status: 404,
+    description: 'Event not found',
+    type: ErrorResponseDto,
+  })
   @Put('events/:eventId')
   updateEvent(
     @Param('eventId', ParseUUIDPipe) eventId: string,
@@ -165,15 +239,27 @@ export class ApiGatewayController {
 
   @ApiTags('Events')
   @ApiBearerAuth('bearerAuth')
-  @ApiOperation({ summary: 'Delete an event' })
+  @ApiOperation({
+    summary: 'Delete an event',
+    description: 'Deletes an event owned by the authenticated user.',
+  })
   @ApiParam({
     name: 'eventId',
     description: 'UUID of the event',
     format: 'uuid',
+    example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
   })
-  @ApiResponse({ status: 200, description: 'Event deleted' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Event not found' })
+  @ApiResponse({
+    status: 200,
+    description: 'Event deleted',
+    type: DeleteEventResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized', type: ErrorResponseDto })
+  @ApiResponse({
+    status: 404,
+    description: 'Event not found',
+    type: ErrorResponseDto,
+  })
   @Delete('events/:eventId')
   deleteEvent(
     @Param('eventId', ParseUUIDPipe) eventId: string,
@@ -186,12 +272,22 @@ export class ApiGatewayController {
   @ApiBearerAuth('bearerAuth')
   @ApiOperation({
     summary: "Send a push notification to a specific user's devices",
+    description:
+      'Admin only. Resolves the recipient\'s device tokens server-side and multicasts. Returns per-device delivery counts.',
   })
   @ApiBody({ type: SendNotificationBodyDto })
-  @ApiResponse({ status: 201, description: 'Notification sent' })
-  @ApiResponse({ status: 400, description: 'Validation error' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Admin only' })
+  @ApiResponse({
+    status: 201,
+    description: 'Notification sent',
+    type: SendNotificationResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation error',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized', type: ErrorResponseDto })
+  @ApiResponse({ status: 403, description: 'Admin only', type: ErrorResponseDto })
   @UseGuards(AdminGuard)
   @Post('notifications/send')
   @UsePipes(new ZodValidationPipe(SendToUserSchema))
@@ -206,12 +302,22 @@ export class ApiGatewayController {
   @ApiBearerAuth('bearerAuth')
   @ApiOperation({
     summary: 'Broadcast a push notification to all users (admin)',
+    description:
+      'Admin only. Fire-and-forget: enqueues the broadcast to Kafka and returns 202 immediately; a worker fans out to every registered device.',
   })
   @ApiBody({ type: BroadcastBodyDto })
-  @ApiResponse({ status: 202, description: 'Broadcast accepted for delivery' })
-  @ApiResponse({ status: 400, description: 'Validation error' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Admin only' })
+  @ApiResponse({
+    status: 202,
+    description: 'Broadcast accepted for delivery',
+    type: BroadcastResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation error',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized', type: ErrorResponseDto })
+  @ApiResponse({ status: 403, description: 'Admin only', type: ErrorResponseDto })
   @UseGuards(AdminGuard)
   @HttpCode(202)
   @Post('notifications/broadcast')
@@ -227,11 +333,23 @@ export class ApiGatewayController {
 
   @ApiTags('Notifications')
   @ApiBearerAuth('bearerAuth')
-  @ApiOperation({ summary: 'Register a device token for push notifications' })
+  @ApiOperation({
+    summary: 'Register a device token for push notifications',
+    description:
+      'Upserts an FCM/APNs device token for the authenticated user so future notifications can reach this device.',
+  })
   @ApiBody({ type: RegisterDeviceTokenBodyDto })
-  @ApiResponse({ status: 201, description: 'Token registered' })
-  @ApiResponse({ status: 400, description: 'Validation error' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({
+    status: 201,
+    description: 'Token registered',
+    type: RegisterTokenResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation error',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized', type: ErrorResponseDto })
   @Post('notifications/register-token')
   @UsePipes(
     new ZodValidationPipe(RegisterDeviceTokenSchema.omit({ userId: true })),

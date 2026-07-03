@@ -6,14 +6,18 @@ import { z } from 'zod';
 // These DTOs are OpenAPI-only; runtime validation uses ZodValidationPipe with the original schemas.
 export class CreateEventBodyDto extends createZodDto(
   CreateEventSchema.omit({ userId: true }).extend({
-    date: z
-      .string()
-      .describe('ISO 8601 datetime string — must be in the future'),
+    date: z.string().meta({
+      description: 'Event start time as an ISO 8601 datetime. Must be in the future.',
+      example: '2026-09-01T18:30:00.000Z',
+    }),
   }),
 ) {}
 
 export class UpdateEventBodyDto extends createZodDto(
   UpdateEventSchema.omit({ userId: true, eventId: true }).extend({
-    date: z.string().optional().describe('ISO 8601 datetime string'),
+    date: z.string().optional().meta({
+      description: 'New event start time as an ISO 8601 datetime.',
+      example: '2026-09-01T18:30:00.000Z',
+    }),
   }),
 ) {}
