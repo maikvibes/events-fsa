@@ -2,15 +2,35 @@ import { useState } from 'react'
 import * as authApi from '@/features/auth/api/auth.api'
 import { type LogKind, type StatusState, esc } from '@/types'
 
-export function useAuth(addLog: (kind: LogKind, label: string, detail?: string) => void) {
-  const [token, setToken] = useState<string | null>(null)
-  const [userId, setUserId] = useState<string | null>(null)
-  const [email, setEmail] = useState<string | null>(null)
+const AUTH_SESSION_KEY = 'authSession'
 
-  const [authStatus, setAuthStatus] = useState<StatusState>({
-    msg: 'Register a new account or log in to begin.',
-    kind: 'info',
-  })
+interface StoredSession {
+  token: string
+  userId: string
+  email: string
+}
+
+function loadStoredSession(): StoredSession | null {
+  const raw = localStorage.getItem(AUTH_SESSION_KEY)
+  if (!raw) return null
+  try {
+    return JSON.parse(raw) as StoredSession
+  } catch {
+    return null
+  }
+}
+
+export function useAuth(addLog: (kind: LogKind, label: string, detail?: string) => void) {
+  const stored = loadStoredSession()
+  const [token, setToken] = useState<string | null>(stored?.token ?? null)
+  const [userId, setUserId] = useState<string | null>(stored?.userId ?? null)
+  const [email, setEmail] = useState<string | null>(stored?.email ?? null)
+
+  const [authStatus, setAuthStatus] = useState<StatusState>(
+    stored
+      ? { msg: `Restored session for ${stored.email}.`, kind: 'ok' }
+      : { msg: 'Register a new account or log in to begin.', kind: 'info' },
+  )
 
   const [name, setName] = useState('')
   const [authEmail, setAuthEmail] = useState('')
@@ -24,6 +44,7 @@ export function useAuth(addLog: (kind: LogKind, label: string, detail?: string) 
     setToken(t)
     setUserId(uid)
     setEmail(em)
+    localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({ token: t, userId: uid, email: em }))
     return { token: t, userId: uid, email: em }
   }
 
@@ -67,6 +88,7 @@ export function useAuth(addLog: (kind: LogKind, label: string, detail?: string) 
     setToken(null)
     setUserId(null)
     setEmail(null)
+    localStorage.removeItem(AUTH_SESSION_KEY)
     setAuthStatus({ msg: 'Logged out.', kind: 'info' })
     addLog('ok', 'logout')
   }
