@@ -6,6 +6,7 @@ import {
   HttpCode,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Put,
   UseGuards,
@@ -42,7 +43,11 @@ import type {
   BroadcastDto,
   RegisterDeviceTokenDto,
 } from '@app/shared';
-import { RegisterBodyDto, LoginBodyDto } from './dto/auth.dto';
+import {
+  RegisterBodyDto,
+  LoginBodyDto,
+  UpdateUserRoleBodyDto,
+} from './dto/auth.dto';
 import {
   CreateEventBodyDto,
   UpdateEventBodyDto,
@@ -130,6 +135,24 @@ export class ApiGatewayController {
   @Delete('admin/users/:userId')
   deleteUser(@Param('userId', ParseUUIDPipe) userId: string) {
     return this.apiGatewayService.deleteUser(userId);
+  }
+
+  @ApiTags('Admin')
+  @ApiBearerAuth('bearerAuth')
+  @ApiOperation({ summary: "Change a user's role (admin only)" })
+  @ApiParam({ name: 'userId', description: 'UUID of the user' })
+  @ApiBody({ type: UpdateUserRoleBodyDto })
+  @ApiResponse({ status: 200, description: 'Role updated' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Admin only' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @UseGuards(AdminGuard)
+  @Patch('admin/users/:userId/role')
+  updateUserRole(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body() dto: UpdateUserRoleBodyDto,
+  ) {
+    return this.apiGatewayService.updateUserRole(userId, dto.role);
   }
 
   @ApiTags('Admin')

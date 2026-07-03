@@ -17,6 +17,8 @@ import {
   SendToUserDto,
   BroadcastDto,
   NotificationBroadcastEvent,
+  ListUsersQueryDto,
+  Role,
 } from '@app/shared';
 
 @Injectable()
@@ -35,6 +37,7 @@ export class ApiGatewayService implements OnModuleInit {
     this.authClient.subscribeToResponseOf(AuthPatterns.GET_PROFILE);
     this.authClient.subscribeToResponseOf(AuthPatterns.LIST_USERS);
     this.authClient.subscribeToResponseOf(AuthPatterns.DELETE_USER);
+    this.authClient.subscribeToResponseOf(AuthPatterns.UPDATE_USER_ROLE);
 
     this.eventsClient.subscribeToResponseOf(EventsPatterns.CREATE);
     this.eventsClient.subscribeToResponseOf(EventsPatterns.FIND_ALL);
@@ -82,8 +85,14 @@ export class ApiGatewayService implements OnModuleInit {
     );
   }
 
-  listUsers() {
-    return firstValueFrom(this.authClient.send(AuthPatterns.LIST_USERS, {}));
+  listUsers(query: ListUsersQueryDto = {}) {
+    return firstValueFrom(this.authClient.send(AuthPatterns.LIST_USERS, query));
+  }
+
+  updateUserRole(userId: string, role: Role) {
+    return firstValueFrom(
+      this.authClient.send(AuthPatterns.UPDATE_USER_ROLE, { userId, role }),
+    );
   }
 
   deleteUser(userId: string) {
