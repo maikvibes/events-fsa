@@ -132,4 +132,75 @@ describe('AuthService', () => {
 
     await expect(service.updateUserRole('missing', 'admin')).rejects.toThrow();
   });
+
+  describe('findAll', () => {
+    const dbUser = {
+      id: 'u1',
+      email: 'a@example.com',
+      name: 'A',
+      role: 'user' as const,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    };
+
+    it('applies defaults when no query params are given', async () => {
+      prisma.user.findMany.mockResolvedValue([dbUser]);
+      prisma.user.count.mockResolvedValue(1);
+
+      const result = await service.findAll();
+
+      expect(prisma.user.findMany).toHaveBeenCalledWith({
+        where: {},
+        orderBy: { createdAt: 'desc' },
+        skip: 0,
+        take: 20,
+      });
+      expect(result).toEqual({
+        items: [
+          {
+            userId: 'u1',
+            email: 'a@example.com',
+            name: 'A',
+            role: 'user',
+            createdAt: dbUser.createdAt,
+          },
+        ],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+      });
+    });
+
+    it('builds search, role, and date-range filters, custom sort and pagination', async () => {
+      prisma.user.findMany.mockResolvedValue([]);
+      prisma.user.count.mockResolvedValue(0);
+
+      await service.findAll({
+        page: 3,
+        pageSize: 50,
+        search: 'ali',
+        role: 'admin',
+        createdFrom: '2026-01-01',
+        createdTo: '2026-06-30',
+        sortBy: 'name',
+        sortOrder: 'asc',
+      });
+
+      expect(prisma.user.findMany).toHaveBeenCalledWith({
+        where: {
+          OR: [
+            { name: { contains: 'ali', mode: 'insensitive' } },
+            { email: { contains: 'ali', mode: 'insensitive' } },
+          ],
+          role: 'admin',
+          createdAt: {
+            gte: new Date('2026-01-01'),
+            lte: new Date('2026-06-30T23:59:59.999Z'),
+          },
+        },
+        orderBy: { name: 'asc' },
+        skip: 100,
+        take: 50,
+      });
+    });
+  });
 });

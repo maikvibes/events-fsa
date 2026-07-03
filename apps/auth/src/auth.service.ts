@@ -18,6 +18,7 @@ import {
   PaginatedUsers,
   Role,
 } from '@app/shared';
+import { Prisma } from './generated/prisma-client';
 import { PrismaService } from './prisma.service';
 
 @Injectable()
@@ -103,9 +104,40 @@ export class AuthService {
   }
 
   async findAll(query: ListUsersQueryDto = {}): Promise<PaginatedUsers> {
-    const users = await this.prisma.user.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+    const sortBy = query.sortBy ?? 'createdAt';
+    const sortOrder = query.sortOrder ?? 'desc';
+
+    const where: Prisma.UserWhereInput = {};
+    if (query.search) {
+      where.OR = [
+        { name: { contains: query.search, mode: 'insensitive' } },
+        { email: { contains: query.search, mode: 'insensitive' } },
+      ];
+    }
+    if (query.role) {
+      where.role = query.role;
+    }
+    if (query.createdFrom || query.createdTo) {
+      where.createdAt = {
+        ...(query.createdFrom ? { gte: new Date(query.createdFrom) } : {}),
+        ...(query.createdTo
+          ? { lte: new Date(`${query.createdTo}T23:59:59.999Z`) }
+          : {}),
+      };
+    }
+
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        orderBy: { [sortBy]: sortOrder },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
     return {
       items: users.map((u) => ({
         userId: u.id,
@@ -114,9 +146,9 @@ export class AuthService {
         role: u.role,
         createdAt: u.createdAt,
       })),
-      total: users.length,
-      page: 1,
-      pageSize: users.length,
+      total,
+      page,
+      pageSize,
     };
   }
 
