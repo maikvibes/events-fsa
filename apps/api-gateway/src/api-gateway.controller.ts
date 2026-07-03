@@ -46,6 +46,15 @@ import {
 export class ApiGatewayController {
   constructor(private readonly apiGatewayService: ApiGatewayService) {}
 
+  @ApiTags('Health')
+  @ApiOperation({ summary: 'Health check' })
+  @ApiResponse({ status: 200, description: 'Gateway is reachable' })
+  @Public()
+  @Get('health')
+  health() {
+    return { status: 'ok' as const };
+  }
+
   @ApiTags('Auth')
   @ApiOperation({ summary: 'Register a new user' })
   @ApiBody({ type: RegisterBodyDto })
