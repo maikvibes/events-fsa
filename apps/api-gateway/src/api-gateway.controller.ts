@@ -316,9 +316,7 @@ export class ApiGatewayController {
   @Post('notifications/register-token')
   registerDeviceToken(
     @Body(
-      new ZodValidationPipe(
-        RegisterDeviceTokenSchema.omit({ userId: true }),
-      ),
+      new ZodValidationPipe(RegisterDeviceTokenSchema.omit({ userId: true })),
     )
     dto: Omit<RegisterDeviceTokenDto, 'userId'>,
     @CurrentUser() user: TokenPayload,
