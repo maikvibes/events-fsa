@@ -10,6 +10,17 @@ import { cleanupOpenApiDoc } from 'nestjs-zod';
 async function bootstrap() {
   const app = await NestFactory.create(ApiGatewayModule);
 
+  const allowedOrigins = process.env.CORS_ORIGIN?.split(',') ?? [];
+  app.enableCors({
+    origin: allowedOrigins.length
+      ? (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => {
+          if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+          cb(new Error('Not allowed by CORS'));
+        }
+      : true,
+    credentials: true,
+  });
+
   const reflector = app.get(Reflector);
 
   app.useGlobalFilters(new AllExceptionsFilter());
@@ -20,9 +31,6 @@ async function bootstrap() {
   app.useGlobalGuards(new JwtAuthGuard(reflector, app.get('AUTH_SERVICE')));
 
   app.setGlobalPrefix('api/v1');
-  app.enableCors({
-    origin: process.env.CORS_ORIGIN?.split(',') ?? '*',
-  });
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('FSA Events API')
