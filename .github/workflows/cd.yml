@@ -77,8 +77,10 @@ jobs:
               rm -rf /tmp/events-fsa-init
             fi
             cd /opt/events-fsa
+            OLD_SHA=$(git rev-parse HEAD 2>/dev/null || echo "")
             git fetch --quiet origin dev
             git reset --hard origin/dev
+            NEW_SHA=$(git rev-parse HEAD)
             if [ ! -f .env ]; then
               bash scripts/generate-secrets.sh
             fi
@@ -109,9 +111,52 @@ jobs:
               echo "FIREBASE_CLIENT_EMAIL=$FIREBASE_CLIENT_EMAIL"
             } >> .env
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-            docker compose -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.prod.yml build migrate
-            docker compose -f docker-compose.prod.yml up -d
+
+            # Only redeploy the services whose code actually changed instead
+            # of restarting the whole stack on every push. Falls back to a
+            # full deploy on first run (no OLD_SHA) or when something that
+            # affects every service changed (shared lib, root config, the
+            # compose file itself).
+            CHANGED_FILES=""
+            if [ -n "$OLD_SHA" ] && [ "$OLD_SHA" != "$NEW_SHA" ]; then
+              CHANGED_FILES=$(git diff --name-only "$OLD_SHA" "$NEW_SHA")
+            fi
+
+            FULL_DEPLOY=true
+            if [ -n "$CHANGED_FILES" ]; then
+              if ! echo "$CHANGED_FILES" | grep -qE '^(libs/shared/|package(-lock)?\.json$|Dockerfile$|nest-cli\.json$|tsconfig.*\.json$|docker-compose\.prod\.yml$|scripts/generate-secrets\.sh$)'; then
+                FULL_DEPLOY=false
+              fi
+            fi
+
+            if [ "$FULL_DEPLOY" = "true" ]; then
+              echo "Full deploy (first run, or a shared/infra file changed)"
+              docker compose -f docker-compose.prod.yml pull
+              docker compose -f docker-compose.prod.yml build migrate
+              docker compose -f docker-compose.prod.yml up -d
+            else
+              SERVICES=""
+              echo "$CHANGED_FILES" | grep -q '^apps/api-gateway/'    && SERVICES="$SERVICES api-gateway"
+              echo "$CHANGED_FILES" | grep -q '^apps/auth/'           && SERVICES="$SERVICES auth"
+              echo "$CHANGED_FILES" | grep -q '^apps/events/'         && SERVICES="$SERVICES events"
+              echo "$CHANGED_FILES" | grep -q '^apps/notifications/' && SERVICES="$SERVICES notifications"
+              echo "$CHANGED_FILES" | grep -q '^frontend/'            && SERVICES="$SERVICES frontend"
+              SERVICES=$(echo "$SERVICES" | xargs)
+
+              if [ -n "$SERVICES" ]; then
+                echo "Targeted deploy: $SERVICES"
+                docker compose -f docker-compose.prod.yml pull $SERVICES
+                docker compose -f docker-compose.prod.yml up -d --no-deps $SERVICES
+              else
+                echo "No deployable service changed — skipping pull/restart."
+              fi
+
+              if echo "$CHANGED_FILES" | grep -qE '^apps/(auth|events|notifications)/prisma/'; then
+                echo "Schema change detected — running migrations"
+                docker compose -f docker-compose.prod.yml build migrate
+                docker compose -f docker-compose.prod.yml run --rm migrate
+              fi
+            fi
             docker image prune -f
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -22,6 +22,9 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       app: ${{ steps.filter.outputs.app }}
+      migrations: ${{ steps.filter.outputs.migrations }}
+      services: ${{ steps.services.outputs.services }}
+      nest_apps: ${{ steps.services.outputs.nest_apps }}
     steps:
       - uses: actions/checkout@v7
 
@@ -32,7 +35,6 @@ jobs:
             app:
               - 'apps/**'
               - 'libs/**'
-              - 'prisma/**'
               - 'package.json'
               - 'package-lock.json'
               - 'Dockerfile'
@@ -40,6 +42,60 @@ jobs:
               - 'tsconfig*.json'
               - 'frontend/**'
               - 'scripts/generate-sw.mjs'
+            shared: &shared
+              - 'libs/shared/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'Dockerfile'
+              - 'nest-cli.json'
+              - 'tsconfig*.json'
+            api-gateway:
+              - *shared
+              - 'apps/api-gateway/**'
+            auth:
+              - *shared
+              - 'apps/auth/**'
+            events:
+              - *shared
+              - 'apps/events/**'
+            events-app:
+              - *shared
+              - 'apps/events-app/**'
+            notifications:
+              - *shared
+              - 'apps/notifications/**'
+            frontend:
+              - 'frontend/**'
+              - 'scripts/generate-sw.mjs'
+            migrations:
+              - 'apps/auth/prisma/**'
+              - 'apps/events/prisma/**'
+              - 'apps/notifications/prisma/**'
+              - 'package.json'
+              - 'package-lock.json'
+
+      # Turns the per-service booleans above into two JSON arrays: one for the
+      # docker publish matrix (includes frontend), one for `nest build` (does
+      # not — frontend isn't a Nest app) — so only what actually changed gets
+      # built/published instead of rebuilding all 5 services + frontend on
+      # every push.
+      - name: Compute changed-service lists
+        id: services
+        run: |
+          nest_apps=()
+          for svc in api-gateway auth events events-app notifications; do
+            if [ "${{ steps.filter.outputs[svc] }}" = "true" ]; then
+              nest_apps+=("$svc")
+            fi
+          done
+          services=("${nest_apps[@]}")
+          if [ "${{ steps.filter.outputs.frontend }}" = "true" ]; then
+            services+=("frontend")
+          fi
+          nest_json=$(printf '%s\n' "${nest_apps[@]}" | jq -R . | jq -s -c .)
+          services_json=$(printf '%s\n' "${services[@]}" | jq -R . | jq -s -c .)
+          echo "nest_apps=$nest_json" >> "$GITHUB_OUTPUT"
+          echo "services=$services_json" >> "$GITHUB_OUTPUT"
 
   test:
     name: Lint, build & test
@@ -61,9 +117,10 @@ jobs:
       - name: Lint
         run: npx eslint "{src,apps,libs,test}/**/*.ts"
 
-      - name: Build all apps
+      - name: Build changed apps
         run: |
-          for app in api-gateway auth events events-app notifications; do
+          apps='${{ needs.changes.outputs.nest_apps }}'
+          echo "$apps" | jq -r '.[]' | while read -r app; do
             echo "::group::nest build $app"
             npx nest build "$app"
             echo "::endgroup::"
@@ -78,7 +135,7 @@ jobs:
   migrations-check:
     name: Validate Prisma migrations
     needs: changes
-    if: needs.changes.outputs.app == 'true'
+    if: needs.changes.outputs.migrations == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -120,7 +177,13 @@ jobs:
   docker:
     name: Build & publish images
     needs: [changes, test, migrations-check]
-    if: needs.changes.outputs.app == 'true'
+    # migrations-check is conditionally skipped (only runs when prisma/**
+    # changed) — treat skipped as passing so it doesn't block image builds
+    # when nothing schema-related changed.
+    if: |
+      needs.changes.outputs.services != '[]' &&
+      needs.test.result == 'success' &&
+      (needs.migrations-check.result == 'success' || needs.migrations-check.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -129,7 +192,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [api-gateway, auth, events, events-app, notifications, frontend]
+        service: ${{ fromJson(needs.changes.outputs.services) }}
     steps:
       - uses: actions/checkout@v7
 
