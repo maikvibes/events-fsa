@@ -12,6 +12,10 @@ export const BASE_URL = withApiPrefix(RAW_BASE_URL);
 
 export const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
+// The dev stack (docker-compose.dev.yml) hits remote Postgres/Kafka/Redis over
+// TLS, which is slower than local containers and can exceed k6's 60s default.
+export const REQUEST_TIMEOUT = '90s';
+
 export const DEFAULT_PASSWORD = __ENV.TEST_PASSWORD || 'Password123!';
 
 export function authHeaders(token) {
