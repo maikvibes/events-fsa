@@ -127,7 +127,11 @@ export class ApiGatewayController {
   @ApiQuery({ name: 'role', required: false, enum: ['user', 'admin'] })
   @ApiQuery({ name: 'createdFrom', required: false, type: String })
   @ApiQuery({ name: 'createdTo', required: false, type: String })
-  @ApiQuery({ name: 'sortBy', required: false, enum: ['name', 'email', 'createdAt'] })
+  @ApiQuery({
+    name: 'sortBy',
+    required: false,
+    enum: ['name', 'email', 'createdAt'],
+  })
   @ApiQuery({ name: 'sortOrder', required: false, enum: ['asc', 'desc'] })
   @ApiResponse({ status: 200, description: 'Users returned' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
