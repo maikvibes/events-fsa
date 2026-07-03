@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { onMessage } from 'firebase/messaging'
-import { messaging } from '@/lib/firebase'
+import { getMessagingIfSupported } from '@/lib/firebase'
 import { useLog } from '@/hooks/useLog'
 import { useGuestId } from '@/hooks/useGuestId'
 import { useAuth } from '@/features/auth/hooks/useAuth'
@@ -31,10 +31,15 @@ export default function App() {
   const event = useEvent({ token: auth.token, addLog: log.add })
 
   useEffect(() => {
-    return onMessage(messaging, (payload) => {
-      const n = payload.notification ?? {}
-      log.add('ok', 'push received (foreground)', `${esc(n.title ?? '(no title)')} — ${esc(n.body ?? '')}`)
+    let unsubscribe: (() => void) | undefined
+    getMessagingIfSupported().then((messaging) => {
+      if (!messaging) return
+      unsubscribe = onMessage(messaging, (payload) => {
+        const n = payload.notification ?? {}
+        log.add('ok', 'push received (foreground)', `${esc(n.title ?? '(no title)')} — ${esc(n.body ?? '')}`)
+      })
     })
+    return () => unsubscribe?.()
   }, [])
 
   if (showAuthPage) {

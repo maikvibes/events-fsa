@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app'
-import { getMessaging } from 'firebase/messaging'
+import { getMessaging, isSupported, type Messaging } from 'firebase/messaging'
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -12,4 +12,15 @@ const firebaseConfig = {
 }
 
 const fbApp = initializeApp(firebaseConfig)
-export const messaging = getMessaging(fbApp)
+
+// getMessaging() throws synchronously (not a rejected promise) in any context
+// Firebase considers unsupported — no service worker API, or a non-secure
+// origin (plain HTTP, not localhost). Calling it at module scope crashed the
+// whole app before React could even mount. isSupported() is the sanctioned
+// async check; cache the result so callers can just await this instead.
+let cached: Messaging | null | undefined
+export async function getMessagingIfSupported(): Promise<Messaging | null> {
+  if (cached !== undefined) return cached
+  cached = (await isSupported()) ? getMessaging(fbApp) : null
+  return cached
+}

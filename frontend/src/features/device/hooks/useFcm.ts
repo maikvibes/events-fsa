@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { getToken } from 'firebase/messaging'
-import { messaging } from '@/lib/firebase'
+import { getMessagingIfSupported } from '@/lib/firebase'
 import * as deviceApi from '@/features/device/api/device.api'
 import { type LogKind, type StatusState, esc } from '@/types'
 
@@ -19,6 +19,14 @@ export function useFcm({ userId, token, addLog }: UseFcmParams) {
 
   async function enable() {
     try {
+      const messaging = await getMessagingIfSupported()
+      if (!messaging) {
+        setDeviceStatus({
+          msg: 'Push notifications need a supported browser over HTTPS (or localhost).',
+          kind: 'err',
+        })
+        return
+      }
       setDeviceStatus({ msg: 'Requesting notification permission…', kind: 'info' })
       const permission = await Notification.requestPermission()
       if (permission !== 'granted') {
