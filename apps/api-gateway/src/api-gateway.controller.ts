@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   Put,
+  Query,
   UseGuards,
   UsePipes,
 } from '@nestjs/common';
@@ -17,6 +18,7 @@ import {
   ApiBody,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -34,6 +36,7 @@ import {
   SendToUserSchema,
   BroadcastSchema,
   RegisterDeviceTokenSchema,
+  ListUsersQuerySchema,
 } from '@app/shared';
 import type {
   TokenPayload,
@@ -47,6 +50,7 @@ import {
   RegisterBodyDto,
   LoginBodyDto,
   UpdateUserRoleBodyDto,
+  ListUsersQueryBodyDto,
 } from './dto/auth.dto';
 import {
   CreateEventBodyDto,
@@ -113,14 +117,28 @@ export class ApiGatewayController {
 
   @ApiTags('Admin')
   @ApiBearerAuth('bearerAuth')
-  @ApiOperation({ summary: 'List all users (admin only)' })
+  @ApiOperation({
+    summary:
+      'List users (admin only), paginated/searchable/filterable/sortable',
+  })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'pageSize', required: false, type: Number })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'role', required: false, enum: ['user', 'admin'] })
+  @ApiQuery({ name: 'createdFrom', required: false, type: String })
+  @ApiQuery({ name: 'createdTo', required: false, type: String })
+  @ApiQuery({ name: 'sortBy', required: false, enum: ['name', 'email', 'createdAt'] })
+  @ApiQuery({ name: 'sortOrder', required: false, enum: ['asc', 'desc'] })
   @ApiResponse({ status: 200, description: 'Users returned' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Admin only' })
   @UseGuards(AdminGuard)
   @Get('admin/users')
-  listUsers() {
-    return this.apiGatewayService.listUsers();
+  listUsers(
+    @Query(new ZodValidationPipe(ListUsersQuerySchema))
+    query: ListUsersQueryBodyDto,
+  ) {
+    return this.apiGatewayService.listUsers(query);
   }
 
   @ApiTags('Admin')
