@@ -33,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthContextValue>(() => {
     return {
       token: session?.token ?? null,
-      user: session ? { userId: session.userId, email: session.email, name: session.name } : null,
+      user: session ? { userId: session.userId, email: session.email, name: session.name, role: session.role } : null,
       isAuthenticated: !!session,
       setSession: (data: AuthResponse) => {
         const next: StoredSession = {
@@ -41,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           userId: data.userId,
           email: data.email,
           name: data.name,
+          role: data.role,
         }
         localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(next))
         setSessionState(next)

@@ -1,3 +1,5 @@
+export type Role = 'user' | 'admin'
+
 export interface EventItem {
   eventId: string
   userId: string
@@ -13,6 +15,7 @@ export interface AuthUser {
   userId: string
   email: string
   name: string
+  role: Role
 }
 
 export interface AuthResponse extends AuthUser {
@@ -34,5 +37,13 @@ export interface AdminUserSummary {
   userId: string
   email: string
   name: string
+  role: Role
   createdAt: string
+}
+
+export interface PaginatedAdminUsers {
+  items: AdminUserSummary[]
+  total: number
+  page: number
+  pageSize: number
 }
