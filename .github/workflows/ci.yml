@@ -179,8 +179,12 @@ jobs:
     needs: [changes, test, migrations-check]
     # migrations-check is conditionally skipped (only runs when prisma/**
     # changed) — treat skipped as passing so it doesn't block image builds
-    # when nothing schema-related changed.
+    # when nothing schema-related changed. always() is required up front:
+    # GitHub silently prefixes any custom `if:` with success() unless it
+    # already starts with a status-check function, and success() is false
+    # whenever a needed job (migrations-check) was skipped.
     if: |
+      always() &&
       needs.changes.outputs.services != '[]' &&
       needs.test.result == 'success' &&
       (needs['migrations-check'].result == 'success' || needs['migrations-check'].result == 'skipped')
