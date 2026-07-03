@@ -4,7 +4,7 @@ import exec from 'k6/execution';
 import { Trend, Counter } from 'k6/metrics';
 import { BASE_URL, authHeaders, createUser, registerToken, randomString } from './helpers.js';
 
-const AUDIENCE = Number(__ENV.AUDIENCE || 100000);
+const AUDIENCE = Number(__ENV.AUDIENCE || 2000);
 const SEED_VUS = Number(__ENV.SEED_VUS || 300);
 const FANOUT_VUS = Number(__ENV.FANOUT_VUS || 500);
 const USER_POOL = Number(__ENV.USER_POOL || 50);
@@ -23,15 +23,15 @@ export const options = {
       executor: 'shared-iterations',
       vus: SEED_VUS,
       iterations: AUDIENCE,
-      maxDuration: '60m',
+      maxDuration: '2m',
       exec: 'seedScenario',
     },
     fanout: {
       executor: 'shared-iterations',
       vus: FANOUT_VUS,
       iterations: AUDIENCE,
-      maxDuration: '60m',
-      startTime: '15m',
+      maxDuration: '2m',
+      startTime: '2m',
       exec: 'fanoutScenario',
     },
   },

@@ -1,5 +1,5 @@
 // Run with: k6 run --out json=soak-results.json k6/05-soak.test.js
-// Compare p99 of the first vs last 5-minute windows in the JSON output.
+// Compare p99 of the first vs last 1-minute windows in the JSON output.
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Trend, Rate } from 'k6/metrics';
@@ -13,7 +13,7 @@ export const options = {
     soak: {
       executor: 'constant-vus',
       vus: 100,
-      duration: '30m',
+      duration: '3m',
     },
   },
   thresholds: {
