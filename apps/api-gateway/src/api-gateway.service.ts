@@ -8,11 +8,14 @@ import {
   AuthPatterns,
   EventsPatterns,
   NotificationsPatterns,
+  KafkaTopics,
   RegisterDto,
   LoginDto,
   CreateEventDto,
   UpdateEventDto,
-  SendNotificationDto,
+  SendToUserDto,
+  BroadcastDto,
+  NotificationBroadcastEvent,
 } from '@app/shared';
 
 @Injectable()
@@ -35,7 +38,9 @@ export class ApiGatewayService implements OnModuleInit {
     this.eventsClient.subscribeToResponseOf(EventsPatterns.UPDATE);
     this.eventsClient.subscribeToResponseOf(EventsPatterns.DELETE);
 
-    this.notificationsClient.subscribeToResponseOf(NotificationsPatterns.SEND);
+    this.notificationsClient.subscribeToResponseOf(
+      NotificationsPatterns.SEND_TO_USER,
+    );
     this.notificationsClient.subscribeToResponseOf(
       'notifications.register-token',
     );
@@ -81,9 +86,25 @@ export class ApiGatewayService implements OnModuleInit {
     );
   }
 
-  sendNotification(dto: SendNotificationDto) {
+  sendNotification(dto: SendToUserDto) {
     return firstValueFrom(
-      this.notificationsClient.send(NotificationsPatterns.SEND, dto),
+      this.notificationsClient.send(NotificationsPatterns.SEND_TO_USER, dto),
+    );
+  }
+
+  // Fire-and-forget: emit the broadcast to Kafka and return once the broker has
+  // acked the produce. The heavy 100k-device fan-out happens in the worker, so
+  // the HTTP request never blocks on delivery.
+  broadcast(dto: BroadcastDto, requestedBy: string) {
+    const event: NotificationBroadcastEvent = {
+      title: dto.title,
+      body: dto.body,
+      data: dto.data,
+      requestedBy,
+      requestedAt: new Date(),
+    };
+    return firstValueFrom(
+      this.notificationsClient.emit(KafkaTopics.NOTIFICATION_BROADCAST, event),
     );
   }
 

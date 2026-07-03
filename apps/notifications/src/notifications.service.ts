@@ -5,6 +5,7 @@ import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getMessaging, type BatchResponse } from 'firebase-admin/messaging';
 import {
   SendNotificationDto,
+  SendToUserDto,
   NotificationResult,
   EventCreatedEvent,
   KafkaTopics,
@@ -111,6 +112,44 @@ export class NotificationsService implements OnModuleInit {
       this.logger.error(`FCM failed for user ${dto.userId}: ${error}`);
       return { success: false, error };
     }
+  }
+
+  // Send to every device a given user has registered. Resolves tokens from the DB
+  // so the caller only needs the recipient's userId, never a raw FCM token.
+  async sendToUser(
+    dto: SendToUserDto,
+  ): Promise<{ sent: number; failed: number }> {
+    const tokens = await this.prisma.deviceToken.findMany({
+      where: { userId: dto.userId },
+    });
+    if (!tokens.length) {
+      this.logger.warn(`No device tokens for user ${dto.userId}`);
+      return { sent: 0, failed: 0 };
+    }
+
+    const results = await Promise.allSettled(
+      tokens.map((t) =>
+        this.send({
+          userId: dto.userId,
+          deviceToken: t.token,
+          title: dto.title,
+          body: dto.body,
+          data: dto.data,
+          eventId: dto.eventId,
+        }),
+      ),
+    );
+
+    const failed =
+      results.filter(
+        (r): r is PromiseFulfilledResult<NotificationResult> =>
+          r.status === 'fulfilled' && !r.value.success,
+      ).length + results.filter((r) => r.status === 'rejected').length;
+
+    this.logger.log(
+      `Send-to-user ${dto.userId}: ${results.length - failed}/${results.length} sent`,
+    );
+    return { sent: results.length - failed, failed };
   }
 
   async sendMulticast(

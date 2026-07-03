@@ -7,6 +7,7 @@ export enum KafkaTopics {
   EVENT_DELETED = 'event.deleted',
   NOTIFICATION_SENT = 'notification.sent',
   NOTIFICATION_FAILED = 'notification.failed',
+  NOTIFICATION_BROADCAST = 'notification.broadcast',
 }
 
 export interface UserCreatedEvent {
@@ -67,4 +68,15 @@ export interface NotificationFailedEvent {
   eventId: string;
   error: string;
   failedAt: Date;
+}
+
+// Fire-and-forget: an admin requests a push to ALL users. The gateway emits this
+// on NOTIFICATION_BROADCAST and returns 202 immediately; the notifications worker
+// consumes it and fans out to every device token in FCM multicast batches.
+export interface NotificationBroadcastEvent {
+  title: string;
+  body: string;
+  data?: Record<string, string>;
+  requestedBy: string; // admin userId, for audit
+  requestedAt: Date;
 }

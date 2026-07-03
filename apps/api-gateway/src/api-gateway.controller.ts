@@ -3,10 +3,12 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Post,
   Put,
+  UseGuards,
   UsePipes,
 } from '@nestjs/common';
 import {
@@ -21,19 +23,22 @@ import { ApiGatewayService } from './api-gateway.service';
 import { ZodValidationPipe } from './pipes/zod-validation.pipe';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { AdminGuard } from './guards/admin.guard';
 import {
   RegisterSchema,
   LoginSchema,
   CreateEventSchema,
   UpdateEventSchema,
-  SendNotificationSchema,
+  SendToUserSchema,
+  BroadcastSchema,
   RegisterDeviceTokenSchema,
 } from '@app/shared';
 import type {
   TokenPayload,
   CreateEventDto,
   UpdateEventDto,
-  SendNotificationDto,
+  SendToUserDto,
+  BroadcastDto,
   RegisterDeviceTokenDto,
 } from '@app/shared';
 import { RegisterBodyDto, LoginBodyDto } from './dto/auth.dto';
@@ -41,6 +46,7 @@ import { CreateEventBodyDto, UpdateEventBodyDto } from './dto/events.dto';
 import {
   SendNotificationBodyDto,
   RegisterDeviceTokenBodyDto,
+  BroadcastBodyDto,
 } from './dto/notifications.dto';
 
 @Controller()
@@ -169,23 +175,41 @@ export class ApiGatewayController {
 
   @ApiTags('Notifications')
   @ApiBearerAuth('bearerAuth')
-  @ApiOperation({ summary: 'Send a push notification to a user' })
+  @ApiOperation({
+    summary: "Send a push notification to a specific user's devices",
+  })
   @ApiBody({ type: SendNotificationBodyDto })
   @ApiResponse({ status: 201, description: 'Notification sent' })
   @ApiResponse({ status: 400, description: 'Validation error' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @Post('notifications/send')
-  @UsePipes(
-    new ZodValidationPipe(SendNotificationSchema.omit({ userId: true })),
-  )
-  sendNotification(
-    @Body() dto: Omit<SendNotificationDto, 'userId'>,
+  @UsePipes(new ZodValidationPipe(SendToUserSchema))
+  sendNotification(@Body() dto: SendToUserDto) {
+    // userId here is the RECIPIENT (in body); the server resolves their tokens.
+    return this.apiGatewayService.sendNotification(dto);
+  }
+
+  @ApiTags('Notifications')
+  @ApiBearerAuth('bearerAuth')
+  @ApiOperation({
+    summary: 'Broadcast a push notification to all users (admin)',
+  })
+  @ApiBody({ type: BroadcastBodyDto })
+  @ApiResponse({ status: 202, description: 'Broadcast accepted for delivery' })
+  @ApiResponse({ status: 400, description: 'Validation error' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Admin only' })
+  @UseGuards(AdminGuard)
+  @HttpCode(202)
+  @Post('notifications/broadcast')
+  @UsePipes(new ZodValidationPipe(BroadcastSchema))
+  async broadcast(
+    @Body() dto: BroadcastDto,
     @CurrentUser() user: TokenPayload,
   ) {
-    return this.apiGatewayService.sendNotification({
-      ...dto,
-      userId: user.userId,
-    });
+    // Fire-and-forget: enqueue and return 202; the worker fans out to all devices.
+    await this.apiGatewayService.broadcast(dto, user.userId);
+    return { accepted: true, message: 'Broadcast queued for delivery' };
   }
 
   @ApiTags('Notifications')

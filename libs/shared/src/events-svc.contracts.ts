@@ -8,6 +8,7 @@ export const EventsPatterns = {
 
 export const NotificationsPatterns = {
   SEND: 'notifications.send',
+  SEND_TO_USER: 'notifications.send-to-user',
   MULTICAST: 'notifications.multicast',
   BROADCAST: 'notifications.broadcast',
 } as const;
