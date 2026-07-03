@@ -41,10 +41,12 @@ export function AppHeader() {
             <span className="hidden text-sm font-medium sm:inline">{user.name}</span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel className="flex flex-col gap-0.5">
-              <span className="font-medium">{user.name}</span>
-              <span className="text-xs font-normal text-muted-foreground">{user.email}</span>
-            </DropdownMenuLabel>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="flex flex-col gap-0.5">
+                <span className="font-medium">{user.name}</span>
+                <span className="text-xs font-normal text-muted-foreground">{user.email}</span>
+              </DropdownMenuLabel>
+            </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem onClick={() => navigate('/profile')}>

@@ -1,6 +1,7 @@
 import { Trash2Icon, UsersIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { ConfirmDialog } from '@/components/common/confirm-dialog'
@@ -37,25 +38,28 @@ export function UsersPanel() {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {(users.data ?? []).map((u) => (
-          <TableRow key={u.userId}>
-            <TableCell className="font-medium">{u.name}</TableCell>
-            <TableCell className="text-muted-foreground">{u.email}</TableCell>
-            <TableCell className="text-muted-foreground">{new Date(u.createdAt).toLocaleDateString()}</TableCell>
-            <TableCell className="text-right">
-              <ConfirmDialog
-                trigger={
-                  <Button variant="ghost" size="icon-sm">
-                    <Trash2Icon />
-                  </Button>
-                }
-                title="Delete this user?"
-                description={`This permanently deletes ${u.email} and their sessions. This cannot be undone.`}
-                onConfirm={() => deleteUser.mutate(u.userId)}
-              />
-            </TableCell>
-          </TableRow>
-        ))}
+        {(users.data ?? []).map((u) => {
+          const isDeleting = deleteUser.isPending && deleteUser.variables === u.userId
+          return (
+            <TableRow key={u.userId}>
+              <TableCell className="font-medium">{u.name}</TableCell>
+              <TableCell className="text-muted-foreground">{u.email}</TableCell>
+              <TableCell className="text-muted-foreground">{new Date(u.createdAt).toLocaleDateString()}</TableCell>
+              <TableCell className="text-right">
+                <ConfirmDialog
+                  trigger={
+                    <Button variant="ghost" size="icon-sm" disabled={isDeleting}>
+                      {isDeleting ? <Spinner /> : <Trash2Icon />}
+                    </Button>
+                  }
+                  title="Delete this user?"
+                  description={`This permanently deletes ${u.email} and their sessions. This cannot be undone.`}
+                  onConfirm={() => deleteUser.mutate(u.userId)}
+                />
+              </TableCell>
+            </TableRow>
+          )
+        })}
       </TableBody>
     </Table>
   )
