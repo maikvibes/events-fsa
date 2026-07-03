@@ -191,8 +191,13 @@ jobs:
       security-events: write
     strategy:
       fail-fast: false
+      # strategy.matrix is evaluated to plan the job DAG *before* the job-level
+      # `if:` above is checked — an empty array here fails the whole workflow
+      # ("Matrix must define at least one vector") regardless of that `if:`.
+      # The placeholder keeps the matrix non-empty; the job's `if:` (false
+      # whenever services is '[]') still ensures nothing actually builds.
       matrix:
-        service: ${{ fromJson(needs.changes.outputs.services) }}
+        service: ${{ needs.changes.outputs.services != '[]' && fromJson(needs.changes.outputs.services) || fromJson('["noop"]') }}
     steps:
       - uses: actions/checkout@v7
 
