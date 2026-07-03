@@ -166,7 +166,7 @@ jobs:
         run: |
           if [ "${{ matrix.service }}" = "frontend" ]; then
             echo "path=./frontend/Dockerfile" >> "$GITHUB_OUTPUT"
-            echo "build_args=" >> "$GITHUB_OUTPUT"
+            echo "build_args=VITE_API_BASE_URL=${{ vars.API_BASE_URL }}" >> "$GITHUB_OUTPUT"
           else
             echo "path=./Dockerfile" >> "$GITHUB_OUTPUT"
             echo "build_args=SERVICE_NAME=${{ matrix.service }}" >> "$GITHUB_OUTPUT"

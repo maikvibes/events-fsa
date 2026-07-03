@@ -9,10 +9,12 @@ RUN npm ci
 COPY frontend ./
 
 # Vite bakes these into the static bundle at build time, so they're ARGs, not
-# runtime env — placeholder defaults keep the build green without real
-# Firebase web-push credentials configured; override with --build-arg (or
-# real repo secrets, once set up) for working push notifications.
-ARG VITE_API_BASE_URL=http://157.180.69.127:3000/api/v1
+# runtime env. CI passes VITE_API_BASE_URL from the API_BASE_URL repo variable
+# (Settings > Secrets and variables > Actions) — change it there, not here, to
+# repoint the deployed frontend. The Firebase placeholders keep the build
+# green without real web-push credentials configured; override with
+# --build-arg (or real repo secrets, once set up) for working push notifications.
+ARG VITE_API_BASE_URL=https://events-api.maik.io.vn/api/v1
 ARG VITE_FIREBASE_API_KEY=placeholder-api-key
 ARG VITE_FIREBASE_AUTH_DOMAIN=placeholder.firebaseapp.com
 ARG VITE_FIREBASE_PROJECT_ID=placeholder-project
