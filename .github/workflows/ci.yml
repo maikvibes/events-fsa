@@ -1,4 +1,4 @@
-name: CI/CD
+name: CI
 
 on:
   pull_request:
@@ -17,13 +17,37 @@ env:
   NODE_VERSION: "22"
 
 jobs:
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            app:
+              - 'apps/**'
+              - 'libs/**'
+              - 'prisma/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'Dockerfile'
+              - 'nest-cli.json'
+              - 'tsconfig*.json'
+
   test:
     name: Lint, build & test
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -51,6 +75,8 @@ jobs:
 
   migrations-check:
     name: Validate Prisma migrations
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -67,9 +93,9 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -91,7 +117,8 @@ jobs:
 
   docker:
     name: Build & publish images
-    needs: [test, migrations-check]
+    needs: [changes, test, migrations-check]
+    if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -100,11 +127,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [api-gateway, auth, events, notifications]
+        service: [api-gateway, auth, events, events-app, notifications]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       - name: Compute image tags
         id: vars
@@ -133,7 +160,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./Dockerfile
@@ -159,67 +186,3 @@ jobs:
         with:
           sarif_file: trivy-results-${{ matrix.service }}.sarif
           category: trivy-${{ matrix.service }}
-
-  deploy:
-    name: Deploy to server
-    needs: docker
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    environment: production
-    permissions:
-      packages: read
-    steps:
-      - name: Compute host key fingerprint
-        id: hostkey
-        run: |
-          printf '%s\n' "${{ secrets.DEPLOY_HOST_KEY }}" | head -1 > /tmp/known_hosts_entry
-          echo "fingerprint=$(ssh-keygen -lf /tmp/known_hosts_entry | awk '{print $2}')" >> "$GITHUB_OUTPUT"
-
-      # The repo is public, so the server pulls it straight from GitHub over
-      # HTTPS instead of the runner pushing files to it — simpler than rsync
-      # and needs no extra auth.
-      - name: Pull latest source, images, restart stack
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          port: ${{ secrets.DEPLOY_PORT }}
-          fingerprint: ${{ steps.hostkey.outputs.fingerprint }}
-          envs: GHCR_TOKEN,FIREBASE_PROJECT_ID,FIREBASE_PRIVATE_KEY,FIREBASE_CLIENT_EMAIL
-          script: |
-            set -e
-            if [ ! -d /opt/events-fsa/.git ]; then
-              # First deploy: clone into a scratch dir and copy in, rather than
-              # cloning straight into /opt/events-fsa, so any .env already
-              # placed there by the server bootstrap step is left untouched.
-              rm -rf /tmp/events-fsa-init
-              git clone --quiet --branch dev https://github.com/maikvibes/events-fsa.git /tmp/events-fsa-init
-              mkdir -p /opt/events-fsa
-              cp -a /tmp/events-fsa-init/. /opt/events-fsa/
-              rm -rf /tmp/events-fsa-init
-            fi
-            cd /opt/events-fsa
-            git fetch --quiet origin dev
-            git reset --hard origin/dev
-            if [ ! -f .env ]; then
-              bash scripts/generate-secrets.sh
-            fi
-            # Firebase creds are real external credentials, not generatable —
-            # sourced from GitHub secrets and kept out of the repo entirely.
-            sed -i '/^FIREBASE_PROJECT_ID=/d;/^FIREBASE_PRIVATE_KEY=/d;/^FIREBASE_CLIENT_EMAIL=/d' .env
-            {
-              echo "FIREBASE_PROJECT_ID=$FIREBASE_PROJECT_ID"
-              echo "FIREBASE_PRIVATE_KEY=\"$FIREBASE_PRIVATE_KEY\""
-              echo "FIREBASE_CLIENT_EMAIL=$FIREBASE_CLIENT_EMAIL"
-            } >> .env
-            echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-            docker compose -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.prod.yml build migrate
-            docker compose -f docker-compose.prod.yml up -d
-            docker image prune -f
-        env:
-          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
-          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
-          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
