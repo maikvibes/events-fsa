@@ -35,12 +35,12 @@ function buildErrorMessage(json: Record<string, unknown>, res: Response, fieldEr
   return `${msg} (HTTP ${res.status})`
 }
 
-export async function api(
+export async function api<T = Record<string, unknown>>(
   method: string,
   path: string,
   body?: object,
   opts: { auth?: boolean; token?: string | null } = {},
-): Promise<Record<string, unknown>> {
+): Promise<T> {
   const { auth = true, token } = opts
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (auth && token) headers.Authorization = `Bearer ${token}`
@@ -63,5 +63,5 @@ export async function api(
     const statusCode = typeof json.statusCode === 'number' ? json.statusCode : res.status
     throw new ApiError(buildErrorMessage(json, res, fieldErrors), statusCode, fieldErrors)
   }
-  return ('data' in json ? json.data : json) as Record<string, unknown>
+  return ('data' in json ? json.data : json) as T
 }

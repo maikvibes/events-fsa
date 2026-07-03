@@ -1,19 +1,3 @@
-export type LogKind = 'ok' | 'err'
-export type StatusKind = 'ok' | 'err' | 'info'
-
-export interface StatusState {
-  msg: string
-  kind: StatusKind
-}
-
-export interface LogEntry {
-  id: number
-  time: string
-  kind: LogKind
-  label: string
-  detail?: string
-}
-
 export interface EventItem {
   eventId: string
   userId: string
@@ -22,13 +6,33 @@ export interface EventItem {
   date: string
   createdAt: string
   updatedAt: string
+  isFollowing?: boolean
 }
 
-export function esc(v: string): string {
-  return String(v).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] ?? c))
+export interface AuthUser {
+  userId: string
+  email: string
+  name: string
 }
 
-let logSeq = 0
-export function nextLogId(): number {
-  return logSeq++
+export interface AuthResponse extends AuthUser {
+  accessToken: string
+}
+
+export interface NotificationLogEntry {
+  id: string
+  userId: string
+  eventId: string | null
+  title: string
+  body: string
+  status: string
+  error: string | null
+  createdAt: string
+}
+
+export interface AdminUserSummary {
+  userId: string
+  email: string
+  name: string
+  createdAt: string
 }

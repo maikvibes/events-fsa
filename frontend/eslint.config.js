@@ -19,4 +19,18 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // shadcn/ui vendor components + context providers intentionally pair a
+    // component export with a hook/util export in the same file.
+    files: ['src/components/ui/**', 'src/hooks/use-mobile.ts', 'src/contexts/**'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
+  {
+    files: ['src/hooks/use-mobile.ts'],
+    rules: {
+      'react-hooks/set-state-in-effect': 'off',
+    },
+  },
 ])
