@@ -246,6 +246,13 @@ export class NotificationsService implements OnModuleInit {
     });
   }
 
+  async findAll(limit = 200) {
+    return this.prisma.notificationLog.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+  }
+
   async broadcast(
     dto: BroadcastDto,
   ): Promise<{ sent: number; failed: number }> {

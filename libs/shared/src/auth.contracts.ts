@@ -3,6 +3,8 @@ export const AuthPatterns = {
   LOGIN: 'auth.login',
   VALIDATE_TOKEN: 'auth.validate-token',
   GET_PROFILE: 'auth.get-profile',
+  LIST_USERS: 'auth.list-users',
+  DELETE_USER: 'auth.delete-user',
 } as const;
 
 export interface AuthResponse {
@@ -16,6 +18,13 @@ export interface ProfileResponse {
   userId: string;
   email: string;
   name: string;
+}
+
+export interface UserSummary {
+  userId: string;
+  email: string;
+  name: string;
+  createdAt: Date;
 }
 
 export interface TokenPayload {

@@ -27,4 +27,14 @@ export class AuthController {
   getProfile(@Payload() dto: { userId: string }) {
     return this.authService.getProfile(dto.userId);
   }
+
+  @MessagePattern(AuthPatterns.LIST_USERS)
+  listUsers() {
+    return this.authService.findAll();
+  }
+
+  @MessagePattern(AuthPatterns.DELETE_USER)
+  deleteUser(@Payload() dto: { userId: string }) {
+    return this.authService.deleteUser(dto.userId);
+  }
 }

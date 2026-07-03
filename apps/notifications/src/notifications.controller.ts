@@ -115,4 +115,9 @@ export class NotificationsController {
   findByUser(@Payload() dto: { userId: string }) {
     return this.notificationsService.findByUser(dto.userId);
   }
+
+  @MessagePattern(NotificationsPatterns.FIND_ALL)
+  findAll() {
+    return this.notificationsService.findAll();
+  }
 }

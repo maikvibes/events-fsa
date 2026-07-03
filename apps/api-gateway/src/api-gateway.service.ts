@@ -33,6 +33,8 @@ export class ApiGatewayService implements OnModuleInit {
     this.authClient.subscribeToResponseOf(AuthPatterns.LOGIN);
     this.authClient.subscribeToResponseOf(AuthPatterns.VALIDATE_TOKEN);
     this.authClient.subscribeToResponseOf(AuthPatterns.GET_PROFILE);
+    this.authClient.subscribeToResponseOf(AuthPatterns.LIST_USERS);
+    this.authClient.subscribeToResponseOf(AuthPatterns.DELETE_USER);
 
     this.eventsClient.subscribeToResponseOf(EventsPatterns.CREATE);
     this.eventsClient.subscribeToResponseOf(EventsPatterns.FIND_ALL);
@@ -51,6 +53,9 @@ export class ApiGatewayService implements OnModuleInit {
     );
     this.notificationsClient.subscribeToResponseOf(
       NotificationsPatterns.FIND_BY_USER,
+    );
+    this.notificationsClient.subscribeToResponseOf(
+      NotificationsPatterns.FIND_ALL,
     );
     this.notificationsClient.subscribeToResponseOf(
       'notifications.register-token',
@@ -74,6 +79,16 @@ export class ApiGatewayService implements OnModuleInit {
   getProfile(userId: string) {
     return firstValueFrom(
       this.authClient.send(AuthPatterns.GET_PROFILE, { userId }),
+    );
+  }
+
+  listUsers() {
+    return firstValueFrom(this.authClient.send(AuthPatterns.LIST_USERS, {}));
+  }
+
+  deleteUser(userId: string) {
+    return firstValueFrom(
+      this.authClient.send(AuthPatterns.DELETE_USER, { userId }),
     );
   }
 
@@ -171,6 +186,12 @@ export class ApiGatewayService implements OnModuleInit {
       this.notificationsClient.send(NotificationsPatterns.FIND_BY_USER, {
         userId,
       }),
+    );
+  }
+
+  listAllNotifications() {
+    return firstValueFrom(
+      this.notificationsClient.send(NotificationsPatterns.FIND_ALL, {}),
     );
   }
 }

@@ -8,6 +8,7 @@ import { useFcm } from '@/features/device/hooks/useFcm'
 import { useSend } from '@/features/send/hooks/useSend'
 import { useEvent } from '@/features/event/hooks/useEvent'
 import { useProfile } from '@/features/profile/hooks/useProfile'
+import { useAdmin } from '@/features/admin/hooks/useAdmin'
 import { useHealth } from '@/features/health/hooks/useHealth'
 import AuthPage from '@/pages/AuthPage'
 import MainApp from '@/pages/MainApp'
@@ -33,6 +34,7 @@ export default function App() {
   const send = useSend({ userId, token: serviceToken, addLog: log.add })
   const event = useEvent({ token: auth.token, addLog: log.add })
   const profile = useProfile({ token: auth.token, isLoggedIn, addLog: log.add })
+  const admin = useAdmin({ token: auth.token, isLoggedIn, addLog: log.add })
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined
@@ -106,6 +108,17 @@ export default function App() {
         profileLoading={profile.loading}
         onRefreshProfile={profile.loadProfile}
         onProfileTabOpen={profile.onTabOpen}
+        adminUsers={admin.users}
+        adminUsersStatus={admin.usersStatus}
+        adminEvents={admin.events}
+        adminEventsStatus={admin.eventsStatus}
+        adminNotifications={admin.notifications}
+        adminNotificationsStatus={admin.notificationsStatus}
+        adminLoading={admin.loading}
+        onAdminTabOpen={admin.onTabOpen}
+        onAdminRefresh={admin.refresh}
+        onDeleteAdminUser={admin.removeUser}
+        onDeleteAdminEvent={admin.removeEvent}
       />
     </>
   )

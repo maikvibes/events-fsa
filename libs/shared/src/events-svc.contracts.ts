@@ -19,6 +19,7 @@ export const NotificationsPatterns = {
   MULTICAST: 'notifications.multicast',
   BROADCAST: 'notifications.broadcast',
   FIND_BY_USER: 'notifications.find-by-user',
+  FIND_ALL: 'notifications.find-all',
 } as const;
 
 export interface EventDto {

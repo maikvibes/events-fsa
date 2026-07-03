@@ -8,10 +8,12 @@ import SendSection from '@/features/send/components/SendSection'
 import { type SendMode } from '@/features/send/hooks/useSend'
 import ProfileSection from '@/features/profile/components/ProfileSection'
 import { type ProfileData } from '@/features/profile/hooks/useProfile'
+import AdminSection from '@/features/admin/components/AdminSection'
+import { type AdminUser, type AdminEvent, type AdminNotification } from '@/features/admin/api/admin.api'
 import ResultLog from '@/components/common/ResultLog'
 import HealthBadge from '@/components/common/HealthBadge'
 
-type Tab = 'device' | 'event' | 'send' | 'profile'
+type Tab = 'device' | 'event' | 'send' | 'profile' | 'admin'
 
 interface Props {
   // auth
@@ -59,6 +61,18 @@ interface Props {
   profileLoading: boolean
   onRefreshProfile: () => void
   onProfileTabOpen: () => void
+  // admin
+  adminUsers: AdminUser[]
+  adminUsersStatus: StatusState
+  adminEvents: AdminEvent[]
+  adminEventsStatus: StatusState
+  adminNotifications: AdminNotification[]
+  adminNotificationsStatus: StatusState
+  adminLoading: boolean
+  onAdminTabOpen: () => void
+  onAdminRefresh: () => void
+  onDeleteAdminUser: (userId: string) => void
+  onDeleteAdminEvent: (eventId: string) => void
 }
 
 const TABS: { id: Tab; label: string }[] = [
@@ -66,6 +80,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'event', label: 'Create Event' },
   { id: 'send', label: 'Send Notification' },
   { id: 'profile', label: 'Profile' },
+  { id: 'admin', label: 'Admin' },
 ]
 
 export default function MainApp({
@@ -108,6 +123,17 @@ export default function MainApp({
   profileLoading,
   onRefreshProfile,
   onProfileTabOpen,
+  adminUsers,
+  adminUsersStatus,
+  adminEvents,
+  adminEventsStatus,
+  adminNotifications,
+  adminNotificationsStatus,
+  adminLoading,
+  onAdminTabOpen,
+  onAdminRefresh,
+  onDeleteAdminUser,
+  onDeleteAdminEvent,
 }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('device')
 
@@ -146,6 +172,7 @@ export default function MainApp({
             onClick={() => {
               setActiveTab(tab.id)
               if (tab.id === 'profile') onProfileTabOpen()
+              if (tab.id === 'admin') onAdminTabOpen()
             }}
           >
             {tab.label}
@@ -202,6 +229,21 @@ export default function MainApp({
             profileStatus={profileStatus}
             loading={profileLoading}
             onRefresh={onRefreshProfile}
+          />
+        )}
+        {activeTab === 'admin' && (
+          <AdminSection
+            isLoggedIn={isLoggedIn}
+            users={adminUsers}
+            usersStatus={adminUsersStatus}
+            events={adminEvents}
+            eventsStatus={adminEventsStatus}
+            notifications={adminNotifications}
+            notificationsStatus={adminNotificationsStatus}
+            loading={adminLoading}
+            onRefresh={onAdminRefresh}
+            onDeleteUser={onDeleteAdminUser}
+            onDeleteEvent={onDeleteAdminEvent}
           />
         )}
       </div>

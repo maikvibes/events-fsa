@@ -106,6 +106,44 @@ export class ApiGatewayController {
     return this.apiGatewayService.getProfile(user.userId);
   }
 
+  @ApiTags('Admin')
+  @ApiBearerAuth('bearerAuth')
+  @ApiOperation({ summary: 'List all users (admin only)' })
+  @ApiResponse({ status: 200, description: 'Users returned' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Admin only' })
+  @UseGuards(AdminGuard)
+  @Get('admin/users')
+  listUsers() {
+    return this.apiGatewayService.listUsers();
+  }
+
+  @ApiTags('Admin')
+  @ApiBearerAuth('bearerAuth')
+  @ApiOperation({ summary: 'Delete a user (admin only)' })
+  @ApiParam({ name: 'userId', description: 'UUID of the user' })
+  @ApiResponse({ status: 200, description: 'User deleted' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Admin only' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @UseGuards(AdminGuard)
+  @Delete('admin/users/:userId')
+  deleteUser(@Param('userId', ParseUUIDPipe) userId: string) {
+    return this.apiGatewayService.deleteUser(userId);
+  }
+
+  @ApiTags('Admin')
+  @ApiBearerAuth('bearerAuth')
+  @ApiOperation({ summary: 'List recent notifications across all users (admin only)' })
+  @ApiResponse({ status: 200, description: 'Notifications returned' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Admin only' })
+  @UseGuards(AdminGuard)
+  @Get('admin/notifications')
+  listAllNotifications() {
+    return this.apiGatewayService.listAllNotifications();
+  }
+
   @ApiTags('Events')
   @ApiBearerAuth('bearerAuth')
   @ApiOperation({ summary: 'Create a new event (admin only)' })

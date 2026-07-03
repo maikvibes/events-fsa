@@ -9,6 +9,7 @@ import {
   ProfileResponse,
   TokenPayload,
   KafkaTopics,
+  UserSummary,
 } from '@app/shared';
 import { PrismaService } from './prisma.service';
 
@@ -67,6 +68,26 @@ export class AuthService {
     if (!user)
       throw new RpcException({ statusCode: 404, message: 'User not found' });
     return { userId: user.id, email: user.email, name: user.name };
+  }
+
+  async findAll(): Promise<UserSummary[]> {
+    const users = await this.prisma.user.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+    return users.map((u) => ({
+      userId: u.id,
+      email: u.email,
+      name: u.name,
+      createdAt: u.createdAt,
+    }));
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    try {
+      await this.prisma.user.delete({ where: { id: userId } });
+    } catch {
+      throw new RpcException({ statusCode: 404, message: 'User not found' });
+    }
   }
 
   validateToken(dto: ValidateTokenDto): TokenPayload {
