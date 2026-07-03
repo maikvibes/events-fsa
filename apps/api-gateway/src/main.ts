@@ -20,7 +20,9 @@ async function bootstrap() {
   app.useGlobalGuards(new JwtAuthGuard(reflector, app.get('AUTH_SERVICE')));
 
   app.setGlobalPrefix('api/v1');
-  app.enableCors();
+  app.enableCors({
+    origin: process.env.CORS_ORIGIN?.split(',') ?? '*',
+  });
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('FSA Events API')
