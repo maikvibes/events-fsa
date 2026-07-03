@@ -65,6 +65,7 @@ export class NotificationsController {
       title: event.title,
       body: event.body,
       data: event.data,
+      eventId: event.eventId,
     });
   }
 

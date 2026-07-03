@@ -50,7 +50,7 @@ export function useEvent({ token, addLog }: UseEventParams) {
     }
     try {
       const data = await eventApi.createEvent({ title, description, date: date.toISOString() }, token)
-      addLog('ok', 'create-event', data?.id ? `eventId ${esc(String(data.id))} — fan-out triggered` : 'created')
+      addLog('ok', 'create-event', data?.eventId ? `eventId ${esc(String(data.eventId))} — fan-out triggered` : 'created')
       await loadEvents()
     } catch (e) {
       addLog('err', 'create-event failed', esc(e instanceof Error ? e.message : String(e)))

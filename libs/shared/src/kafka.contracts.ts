@@ -94,6 +94,7 @@ export interface NotificationBroadcastEvent {
   title: string;
   body: string;
   data?: Record<string, string>;
+  eventId?: string;
   requestedBy: string; // admin userId, for audit
   requestedAt: Date;
 }

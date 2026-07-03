@@ -18,6 +18,11 @@ export const REQUEST_TIMEOUT = '90s';
 
 export const DEFAULT_PASSWORD = __ENV.TEST_PASSWORD || 'Password123!';
 
+// Must match an entry in the server's ADMIN_EMAILS allowlist — the default
+// used across .env.example / scripts/generate-secrets.sh / cd.yml backfill.
+export const ADMIN_EMAIL = __ENV.ADMIN_EMAIL || 'admin@eventfsa.local';
+export const ADMIN_PASSWORD = __ENV.ADMIN_PASSWORD || DEFAULT_PASSWORD;
+
 export function authHeaders(token) {
   return {
     'Content-Type': 'application/json',
@@ -63,6 +68,48 @@ export function createUser(prefix = 'user') {
   }
 
   return { email, password, userId, token };
+}
+
+// Registers (or logs into, if a prior run already created it) the fixed
+// admin account so admin-gated endpoints (e.g. POST /notifications/broadcast)
+// can be exercised. Unlike createUser, the email is fixed, not randomized —
+// it must match the server's ADMIN_EMAILS allowlist, which k6 can't extend.
+export function createAdminUser() {
+  const registerRes = http.post(
+    `${BASE_URL}/auth/register`,
+    JSON.stringify({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD, name: 'K6 Admin' }),
+    { headers: JSON_HEADERS },
+  );
+
+  let res = registerRes;
+  if (registerRes.status === 409) {
+    res = http.post(
+      `${BASE_URL}/auth/login`,
+      JSON.stringify({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD }),
+      { headers: JSON_HEADERS },
+    );
+  }
+
+  if (res.status !== 201 && res.status !== 200) {
+    fail(`createAdminUser: register/login failed — status ${res.status}, body: ${res.body}`);
+  }
+
+  let body;
+  try {
+    body = res.json();
+  } catch {
+    fail(`createAdminUser: non-JSON body: ${res.body}`);
+  }
+
+  const data = body?.data ?? body;
+  const token = data?.accessToken;
+  const userId = data?.userId;
+
+  if (!token || !userId) {
+    fail(`createAdminUser: missing token/userId in response: ${res.body}`);
+  }
+
+  return { email: ADMIN_EMAIL, password: ADMIN_PASSWORD, userId, token };
 }
 
 const ALPHANUM = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';

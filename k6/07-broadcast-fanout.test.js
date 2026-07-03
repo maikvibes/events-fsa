@@ -1,21 +1,31 @@
 import http from 'k6/http';
-import { check, sleep } from 'k6';
+import { check, sleep, fail } from 'k6';
 import exec from 'k6/execution';
 import { Trend, Counter } from 'k6/metrics';
-import { BASE_URL, authHeaders, createUser, registerToken, randomString } from './helpers.js';
+import {
+  BASE_URL,
+  authHeaders,
+  createUser,
+  createAdminUser,
+  registerToken,
+  randomString,
+  randomFutureDate,
+} from './helpers.js';
 
 const AUDIENCE = Number(__ENV.AUDIENCE || 2000);
 const SEED_VUS = Number(__ENV.SEED_VUS || 300);
-const FANOUT_VUS = Number(__ENV.FANOUT_VUS || 500);
 const USER_POOL = Number(__ENV.USER_POOL || 50);
+// Each call fans out server-side to the *entire* seeded audience via FCM
+// multicast, so this stays small — it's a load test of the broadcast
+// trigger path, not a multiplier on top of the seeded fan-out.
+const BROADCAST_CALLS = Number(__ENV.BROADCAST_CALLS || 5);
 
 const PLATFORMS = ['ios', 'android', 'web'];
-const SHARED_EVENT_ID = '00000000-0000-4000-8000-000000000001';
 
 const seedRegDuration = new Trend('seed_token_reg_duration', true);
-const fanoutSendDuration = new Trend('fanout_send_duration', true);
-const fanoutAccepted = new Counter('fanout_accepted');
-const fanoutFailed = new Counter('fanout_failed');
+const broadcastSendDuration = new Trend('broadcast_send_duration', true);
+const broadcastAccepted = new Counter('broadcast_accepted');
+const broadcastFailed = new Counter('broadcast_failed');
 
 export const options = {
   scenarios: {
@@ -26,18 +36,18 @@ export const options = {
       maxDuration: '2m',
       exec: 'seedScenario',
     },
-    fanout: {
+    broadcast: {
       executor: 'shared-iterations',
-      vus: FANOUT_VUS,
-      iterations: AUDIENCE,
-      maxDuration: '2m',
+      vus: Math.min(BROADCAST_CALLS, 10),
+      iterations: BROADCAST_CALLS,
+      maxDuration: '1m',
       startTime: '2m',
-      exec: 'fanoutScenario',
+      exec: 'broadcastScenario',
     },
   },
   thresholds: {
     seed_token_reg_duration: ['p(95)<2000'],
-    fanout_send_duration: ['p(95)<5000', 'p(99)<10000'],
+    broadcast_send_duration: ['p(95)<5000', 'p(99)<10000'],
     http_req_failed: ['rate<0.05'],
   },
 };
@@ -51,7 +61,26 @@ export function setup() {
   for (let i = 0; i < USER_POOL; i++) {
     users.push(createUser(`fanout-${i}`));
   }
-  return { users };
+  const admin = createAdminUser();
+
+  // Real event so the broadcast can be linked via eventId, matching how an
+  // admin would announce an actual event to every registered user.
+  const eventRes = http.post(
+    `${BASE_URL}/events`,
+    JSON.stringify({
+      title: `Broadcast fanout event ${randomString(6)}`,
+      description: 'Seeded by k6 07-broadcast-fanout for eventId-linked broadcasts.',
+      date: randomFutureDate(),
+    }),
+    { headers: authHeaders(admin.token) },
+  );
+  if (eventRes.status !== 201) {
+    fail(`setup: event create failed — status ${eventRes.status}, body: ${eventRes.body}`);
+  }
+  const eventBody = eventRes.json();
+  const eventId = eventBody?.data?.eventId ?? eventBody?.eventId;
+
+  return { users, admin, eventId };
 }
 
 export function seedScenario(data) {
@@ -67,29 +96,34 @@ export function seedScenario(data) {
   sleep(0.05);
 }
 
-export function fanoutScenario(data) {
-  const i = exec.scenario.iterationInTest;
-  const user = data.users[i % data.users.length];
-
+export function broadcastScenario(data) {
   const res = http.post(
-    `${BASE_URL}/notifications/send`,
+    `${BASE_URL}/notifications/broadcast`,
     JSON.stringify({
-      userId: user.userId,
-      deviceToken: deviceToken(i),
-      title: `New Event: Broadcast ${randomString(6)}`,
+      title: `Broadcast ${randomString(6)}`,
       body: 'A new event has been published to all users.',
-      eventId: SHARED_EVENT_ID,
-      data: { eventId: SHARED_EVENT_ID, source: 'k6-broadcast-fanout' },
+      data: { source: 'k6-broadcast-fanout' },
+      eventId: data.eventId,
     }),
-    { headers: authHeaders(user.token), timeout: '15s' },
+    { headers: authHeaders(data.admin.token), timeout: '15s' },
   );
 
-  fanoutSendDuration.add(res.timings.duration);
+  broadcastSendDuration.add(res.timings.duration);
 
   const accepted = check(res, {
-    'fanout send: not 5xx': (r) => r.status < 500,
+    'broadcast: status 202': (r) => r.status === 202,
+    'broadcast: accepted true': (r) => {
+      try {
+        const b = r.json();
+        return (b?.data ?? b)?.accepted === true;
+      } catch {
+        return false;
+      }
+    },
   });
 
-  if (accepted) fanoutAccepted.add(1);
-  else fanoutFailed.add(1);
+  if (accepted) broadcastAccepted.add(1);
+  else broadcastFailed.add(1);
+
+  sleep(0.5);
 }

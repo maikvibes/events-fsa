@@ -36,6 +36,7 @@ export const BroadcastSchema = z.object({
   title: z.string().min(1).max(100),
   body: z.string().min(1).max(500),
   data: z.record(z.string(), z.string()).optional(),
+  eventId: z.uuid().optional(),
 });
 
 export type SendNotificationDto = z.infer<typeof SendNotificationSchema>;

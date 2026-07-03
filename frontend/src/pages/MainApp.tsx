@@ -5,14 +5,18 @@ import { type HealthState } from '@/features/health/hooks/useHealth'
 import DeviceSection from '@/features/device/components/DeviceSection'
 import EventSection from '@/features/event/components/EventSection'
 import SendSection from '@/features/send/components/SendSection'
+import { type SendMode } from '@/features/send/hooks/useSend'
+import ProfileSection from '@/features/profile/components/ProfileSection'
+import { type ProfileData } from '@/features/profile/hooks/useProfile'
 import ResultLog from '@/components/common/ResultLog'
 import HealthBadge from '@/components/common/HealthBadge'
 
-type Tab = 'device' | 'event' | 'send'
+type Tab = 'device' | 'event' | 'send' | 'profile'
 
 interface Props {
   // auth
   isLoggedIn: boolean
+  canUseGuestServices: boolean
   email: string | null
   onLogout: () => void
   onSignIn: () => void
@@ -34,10 +38,12 @@ interface Props {
   onRefreshEvents: () => void
   onDeleteEvent: (eventId: string) => void
   // send
+  sendMode: SendMode
+  setSendMode: (v: SendMode) => void
   sendUserId: string
   setSendUserId: (v: string) => void
-  sendDeviceToken: string
-  setSendDeviceToken: (v: string) => void
+  sendEventId: string
+  setSendEventId: (v: string) => void
   sendTitle: string
   setSendTitle: (v: string) => void
   sendBody: string
@@ -47,16 +53,24 @@ interface Props {
   logEntries: LogEntry[]
   logRef: RefObject<HTMLPreElement | null>
   onClearLog: () => void
+  // profile
+  profile: ProfileData | null
+  profileStatus: StatusState
+  profileLoading: boolean
+  onRefreshProfile: () => void
+  onProfileTabOpen: () => void
 }
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'device', label: 'Register Device' },
   { id: 'event', label: 'Create Event' },
   { id: 'send', label: 'Send Notification' },
+  { id: 'profile', label: 'Profile' },
 ]
 
 export default function MainApp({
   isLoggedIn,
+  canUseGuestServices,
   email,
   onLogout,
   onSignIn,
@@ -75,10 +89,12 @@ export default function MainApp({
   eventsLoading,
   onRefreshEvents,
   onDeleteEvent,
+  sendMode,
+  setSendMode,
   sendUserId,
   setSendUserId,
-  sendDeviceToken,
-  setSendDeviceToken,
+  sendEventId,
+  setSendEventId,
   sendTitle,
   setSendTitle,
   sendBody,
@@ -87,6 +103,11 @@ export default function MainApp({
   logEntries,
   logRef,
   onClearLog,
+  profile,
+  profileStatus,
+  profileLoading,
+  onRefreshProfile,
+  onProfileTabOpen,
 }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('device')
 
@@ -122,7 +143,10 @@ export default function MainApp({
             key={tab.id}
             type="button"
             className={`tab-btn${activeTab === tab.id ? ' active' : ''}`}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => {
+              setActiveTab(tab.id)
+              if (tab.id === 'profile') onProfileTabOpen()
+            }}
           >
             {tab.label}
           </button>
@@ -132,7 +156,7 @@ export default function MainApp({
       <div className="tab-panel">
         {activeTab === 'device' && (
           <DeviceSection
-            isLoggedIn={isLoggedIn}
+            isLoggedIn={canUseGuestServices}
             deviceToken={deviceToken}
             deviceStatus={deviceStatus}
             onEnable={onEnable}
@@ -156,16 +180,28 @@ export default function MainApp({
         )}
         {activeTab === 'send' && (
           <SendSection
-            isLoggedIn={isLoggedIn}
+            isLoggedIn={canUseGuestServices}
+            sendMode={sendMode}
+            setSendMode={setSendMode}
             sendUserId={sendUserId}
             setSendUserId={setSendUserId}
-            sendDeviceToken={sendDeviceToken}
-            setSendDeviceToken={setSendDeviceToken}
+            sendEventId={sendEventId}
+            setSendEventId={setSendEventId}
+            events={events}
             sendTitle={sendTitle}
             setSendTitle={setSendTitle}
             sendBody={sendBody}
             setSendBody={setSendBody}
             onSend={onSend}
+          />
+        )}
+        {activeTab === 'profile' && (
+          <ProfileSection
+            isLoggedIn={isLoggedIn}
+            profile={profile}
+            profileStatus={profileStatus}
+            loading={profileLoading}
+            onRefresh={onRefreshProfile}
           />
         )}
       </div>

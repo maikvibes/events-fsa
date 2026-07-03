@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { onMessage } from 'firebase/messaging'
 import { messaging } from '@/lib/firebase'
 import { useLog } from '@/hooks/useLog'
-import { useGuestId } from '@/hooks/useGuestId'
+import { useGuestSession } from '@/hooks/useGuestSession'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useFcm } from '@/features/device/hooks/useFcm'
 import { useSend } from '@/features/send/hooks/useSend'
 import { useEvent } from '@/features/event/hooks/useEvent'
+import { useProfile } from '@/features/profile/hooks/useProfile'
 import { useHealth } from '@/features/health/hooks/useHealth'
 import AuthPage from '@/pages/AuthPage'
 import MainApp from '@/pages/MainApp'
@@ -16,9 +17,10 @@ import './App.css'
 export default function App() {
   const log = useLog()
   const auth = useAuth(log.add)
-  const guestId = useGuestId()
+  const guestSession = useGuestSession()
   const isLoggedIn = !!auth.token
-  const userId = auth.userId ?? guestId
+  const canUseGuestServices = isLoggedIn || guestSession.ready
+  const userId = auth.userId ?? guestSession.userId
   const health = useHealth()
   const [showAuthPage, setShowAuthPage] = useState(false)
   const [prevIsLoggedIn, setPrevIsLoggedIn] = useState(isLoggedIn)
@@ -26,9 +28,11 @@ export default function App() {
     setPrevIsLoggedIn(isLoggedIn)
     if (isLoggedIn) setShowAuthPage(false)
   }
-  const fcm = useFcm({ userId, token: auth.token, addLog: log.add })
-  const send = useSend({ userId, token: auth.token, deviceToken: fcm.deviceToken, addLog: log.add })
+  const serviceToken = auth.token ?? guestSession.token
+  const fcm = useFcm({ userId, token: serviceToken, addLog: log.add })
+  const send = useSend({ userId, token: serviceToken, addLog: log.add })
   const event = useEvent({ token: auth.token, addLog: log.add })
+  const profile = useProfile({ token: auth.token, isLoggedIn, addLog: log.add })
 
   useEffect(() => {
     return onMessage(messaging, (payload) => {
@@ -59,6 +63,7 @@ export default function App() {
     <>
       <MainApp
         isLoggedIn={isLoggedIn}
+        canUseGuestServices={canUseGuestServices}
         email={auth.email}
         onLogout={auth.logout}
         onSignIn={() => setShowAuthPage(true)}
@@ -77,10 +82,12 @@ export default function App() {
         eventsLoading={event.eventsLoading}
         onRefreshEvents={event.loadEvents}
         onDeleteEvent={event.removeEvent}
+        sendMode={send.sendMode}
+        setSendMode={send.setSendMode}
         sendUserId={send.sendUserId}
         setSendUserId={send.setSendUserId}
-        sendDeviceToken={send.sendDeviceToken}
-        setSendDeviceToken={send.setSendDeviceToken}
+        sendEventId={send.sendEventId}
+        setSendEventId={send.setSendEventId}
         sendTitle={send.sendTitle}
         setSendTitle={send.setSendTitle}
         sendBody={send.sendBody}
@@ -89,6 +96,11 @@ export default function App() {
         logEntries={log.entries}
         logRef={log.ref}
         onClearLog={log.clear}
+        profile={profile.profile}
+        profileStatus={profile.profileStatus}
+        profileLoading={profile.loading}
+        onRefreshProfile={profile.loadProfile}
+        onProfileTabOpen={profile.onTabOpen}
       />
     </>
   )
