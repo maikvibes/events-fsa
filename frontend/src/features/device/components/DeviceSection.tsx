@@ -1,4 +1,5 @@
 import { type StatusState } from '@/types'
+import CopyButton from '@/components/common/CopyButton'
 
 interface Props {
   isLoggedIn: boolean
@@ -19,8 +20,14 @@ export default function DeviceSection({ isLoggedIn, deviceToken, deviceStatus, o
       <button type="button" className="primary" disabled={!isLoggedIn} onClick={onEnable}>
         Enable notifications &amp; register
       </button>
-      <div className={`status ${deviceStatus.kind}`}>{deviceStatus.msg}</div>
-      <label htmlFor="fcm-token">FCM device token</label>
+      <div className={`status ${deviceStatus.kind}`}>
+        <span className="status-dot" />
+        {deviceStatus.msg}
+      </div>
+      <div className="field-label-row">
+        <label htmlFor="fcm-token">FCM device token</label>
+        <CopyButton value={deviceToken ?? ''} />
+      </div>
       <textarea
         id="fcm-token"
         readOnly

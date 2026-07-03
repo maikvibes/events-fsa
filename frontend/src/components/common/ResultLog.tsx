@@ -11,16 +11,26 @@ interface Props {
 export default function ResultLog({ entries, logRef, onClear, className }: Props) {
   return (
     <section className={className}>
-      <h2>Result log</h2>
-      <button type="button" onClick={onClear}>Clear</button>
+      <div className="log-header">
+        <h2>
+          Result log
+          {entries.length > 0 && <span className="log-count">{entries.length}</span>}
+        </h2>
+        <button type="button" disabled={entries.length === 0} onClick={onClear}>Clear</button>
+      </div>
       <pre ref={logRef} className="log">
-        {entries.map(entry => (
-          <div key={entry.id}>
-            <span className="log-meta">[{entry.time}]</span>{' '}
-            <span className={entry.kind === 'err' ? 'log-err' : 'log-ok'}>{entry.label}</span>
-            {entry.detail && <span className="log-meta"> {entry.detail}</span>}
-          </div>
-        ))}
+        {entries.length === 0 ? (
+          <div className="log-empty">No activity yet — actions you take will show up here.</div>
+        ) : (
+          entries.map(entry => (
+            <div key={entry.id} className="log-entry">
+              <span className={`log-dot ${entry.kind === 'err' ? 'err' : 'ok'}`} />
+              <span className="log-meta">[{entry.time}]</span>
+              <span className={entry.kind === 'err' ? 'log-err' : 'log-ok'}>{entry.label}</span>
+              {entry.detail && <span className="log-meta">{entry.detail}</span>}
+            </div>
+          ))
+        )}
       </pre>
     </section>
   )

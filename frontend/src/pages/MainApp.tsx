@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { type RefObject } from 'react'
 import { type StatusState, type LogEntry, type EventItem } from '@/types'
+import { type HealthState } from '@/features/health/hooks/useHealth'
 import DeviceSection from '@/features/device/components/DeviceSection'
 import EventSection from '@/features/event/components/EventSection'
 import SendSection from '@/features/send/components/SendSection'
 import ResultLog from '@/components/common/ResultLog'
+import HealthBadge from '@/components/common/HealthBadge'
 
 type Tab = 'device' | 'event' | 'send'
 
@@ -14,6 +16,7 @@ interface Props {
   email: string | null
   onLogout: () => void
   onSignIn: () => void
+  health: HealthState
   // fcm
   deviceToken: string | null
   deviceStatus: StatusState
@@ -57,6 +60,7 @@ export default function MainApp({
   email,
   onLogout,
   onSignIn,
+  health,
   deviceToken,
   deviceStatus,
   onEnable,
@@ -89,8 +93,15 @@ export default function MainApp({
   return (
     <div className="main-page">
       <header className="main-header">
-        <span className="main-app-name">Notification Console</span>
+        <span className="main-app-name">
+          <span
+            className={`live-dot${deviceToken ? ' live' : ''}`}
+            title={deviceToken ? 'Device registered for push' : 'No device registered yet'}
+          />
+          Notification Console
+        </span>
         <div className="main-header-right">
+          <HealthBadge health={health} />
           {isLoggedIn ? (
             <>
               <span className="muted main-email">{email}</span>

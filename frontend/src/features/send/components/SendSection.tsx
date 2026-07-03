@@ -1,3 +1,5 @@
+import CopyButton from '@/components/common/CopyButton'
+
 interface Props {
   isLoggedIn: boolean
   sendUserId: string
@@ -35,9 +37,12 @@ export default function SendSection({
         value={sendUserId}
         onChange={e => setSendUserId(e.target.value)}
       />
-      <label htmlFor="send-devicetoken">
-        Device token <span className="muted">(defaults to this device)</span>
-      </label>
+      <div className="field-label-row">
+        <label htmlFor="send-devicetoken">
+          Device token <span className="muted">(defaults to this device)</span>
+        </label>
+        <CopyButton value={sendDeviceToken} />
+      </div>
       <textarea
         id="send-devicetoken"
         placeholder="defaults to the token from step 2"

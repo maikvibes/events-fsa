@@ -7,7 +7,8 @@ import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useFcm } from '@/features/device/hooks/useFcm'
 import { useSend } from '@/features/send/hooks/useSend'
 import { useEvent } from '@/features/event/hooks/useEvent'
-import AuthModal from '@/features/auth/components/AuthModal'
+import { useHealth } from '@/features/health/hooks/useHealth'
+import AuthPage from '@/pages/AuthPage'
 import MainApp from '@/pages/MainApp'
 import { esc } from '@/types'
 import './App.css'
@@ -18,11 +19,12 @@ export default function App() {
   const guestId = useGuestId()
   const isLoggedIn = !!auth.token
   const userId = auth.userId ?? guestId
-  const [showAuthModal, setShowAuthModal] = useState(false)
+  const health = useHealth()
+  const [showAuthPage, setShowAuthPage] = useState(false)
   const [prevIsLoggedIn, setPrevIsLoggedIn] = useState(isLoggedIn)
   if (isLoggedIn !== prevIsLoggedIn) {
     setPrevIsLoggedIn(isLoggedIn)
-    if (isLoggedIn) setShowAuthModal(false)
+    if (isLoggedIn) setShowAuthPage(false)
   }
   const fcm = useFcm({ userId, token: auth.token, addLog: log.add })
   const send = useSend({ userId, token: auth.token, deviceToken: fcm.deviceToken, addLog: log.add })
@@ -35,27 +37,32 @@ export default function App() {
     })
   }, [])
 
+  if (showAuthPage) {
+    return (
+      <AuthPage
+        authStatus={auth.authStatus}
+        name={auth.name}
+        setName={auth.setName}
+        authEmail={auth.authEmail}
+        setAuthEmail={auth.setAuthEmail}
+        password={auth.password}
+        setPassword={auth.setPassword}
+        onRegister={auth.register}
+        onLogin={auth.login}
+        onBack={() => setShowAuthPage(false)}
+        health={health}
+      />
+    )
+  }
+
   return (
     <>
-      {showAuthModal && (
-        <AuthModal
-          authStatus={auth.authStatus}
-          name={auth.name}
-          setName={auth.setName}
-          authEmail={auth.authEmail}
-          setAuthEmail={auth.setAuthEmail}
-          password={auth.password}
-          setPassword={auth.setPassword}
-          onRegister={auth.register}
-          onLogin={auth.login}
-          onClose={() => setShowAuthModal(false)}
-        />
-      )}
       <MainApp
         isLoggedIn={isLoggedIn}
         email={auth.email}
         onLogout={auth.logout}
-        onSignIn={() => setShowAuthModal(true)}
+        onSignIn={() => setShowAuthPage(true)}
+        health={health}
         deviceToken={fcm.deviceToken}
         deviceStatus={fcm.deviceStatus}
         onEnable={fcm.enable}

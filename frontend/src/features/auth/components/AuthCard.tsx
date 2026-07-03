@@ -91,7 +91,10 @@ export default function AuthCard({
           </button>
         )}
 
-        <div className={`status ${authStatus.kind}`}>{authStatus.msg}</div>
+        <div className={`status ${authStatus.kind}`}>
+          <span className="status-dot" />
+          {authStatus.msg}
+        </div>
 
         <p className="auth-switch">
           {mode === 'signin' ? (
