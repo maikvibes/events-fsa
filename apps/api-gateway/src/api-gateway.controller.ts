@@ -191,10 +191,14 @@ export class ApiGatewayController {
   @ApiResponse({ status: 201, description: 'Notification sent' })
   @ApiResponse({ status: 400, description: 'Validation error' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Admin only' })
+  @UseGuards(AdminGuard)
   @Post('notifications/send')
   @UsePipes(new ZodValidationPipe(SendToUserSchema))
   sendNotification(@Body() dto: SendToUserDto) {
     // userId here is the RECIPIENT (in body); the server resolves their tokens.
+    // Admin-only: sending to an arbitrary recipient is gated behind AdminGuard
+    // to prevent any authenticated user from spoofing notifications to others.
     return this.apiGatewayService.sendNotification(dto);
   }
 
