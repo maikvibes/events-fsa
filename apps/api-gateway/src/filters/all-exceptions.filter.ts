@@ -37,7 +37,22 @@ export class AllExceptionsFilter implements ExceptionFilter {
         const e = rpcError as Record<string, unknown>;
         status = (e.statusCode as number) ?? HttpStatus.BAD_GATEWAY;
         message = (e.message as string) ?? message;
+        errors = e.errors as unknown[] | undefined;
       }
+    } else if (
+      typeof exception === 'object' &&
+      exception !== null &&
+      'statusCode' in exception
+    ) {
+      // A downstream microservice error. The RpcException instance does not
+      // survive the Kafka transport, so it reaches this filter as a plain
+      // { statusCode, message, errors? } object. Map it to the HTTP status the
+      // service intended (e.g. 409 for a duplicate email) instead of falling
+      // through to a generic 500.
+      const e = exception as Record<string, unknown>;
+      status = (e.statusCode as number) ?? status;
+      message = (e.message as string) ?? message;
+      errors = e.errors as unknown[] | undefined;
     } else {
       this.logger.error(
         'Unhandled exception',

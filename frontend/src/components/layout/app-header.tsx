@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
+import { NotificationTray } from '@/features/notifications/notification-tray'
 import { useAuth } from '@/contexts/auth-context'
 
 function initials(name: string) {
@@ -32,6 +33,7 @@ export function AppHeader() {
       <SidebarTrigger />
       <Separator orientation="vertical" className="mr-2 h-4" />
       <div className="flex-1" />
+      {user && <NotificationTray />}
       {user && (
         <DropdownMenu>
           <DropdownMenuTrigger render={<Button variant="ghost" className="h-9 gap-2 px-2" />}>

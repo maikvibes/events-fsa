@@ -60,12 +60,36 @@ async function main() {
     const now = Date.now();
     const day = 24 * 60 * 60 * 1000;
     const eventDefs = [
-      { title: 'Kickoff Retro', description: 'Looking back at last quarter.', date: new Date(now - 30 * day) },
-      { title: 'Weekly Standup', description: 'Regular team sync.', date: new Date(now + 2 * day) },
-      { title: 'Product Launch', description: 'Public launch event for the new release.', date: new Date(now + 5 * day) },
-      { title: 'Summer Conference', description: 'Annual industry conference.', date: new Date(now + 60 * day) },
-      { title: 'Hackathon', description: '48-hour build sprint.', date: new Date(now + 90 * day) },
-      { title: 'Year-End Party', description: 'Celebrating the year.', date: new Date(now + 200 * day) },
+      {
+        title: 'Kickoff Retro',
+        description: 'Looking back at last quarter.',
+        date: new Date(now - 30 * day),
+      },
+      {
+        title: 'Weekly Standup',
+        description: 'Regular team sync.',
+        date: new Date(now + 2 * day),
+      },
+      {
+        title: 'Product Launch',
+        description: 'Public launch event for the new release.',
+        date: new Date(now + 5 * day),
+      },
+      {
+        title: 'Summer Conference',
+        description: 'Annual industry conference.',
+        date: new Date(now + 60 * day),
+      },
+      {
+        title: 'Hackathon',
+        description: '48-hour build sprint.',
+        date: new Date(now + 90 * day),
+      },
+      {
+        title: 'Year-End Party',
+        description: 'Celebrating the year.',
+        date: new Date(now + 200 * day),
+      },
     ];
 
     const events = [];

@@ -1,7 +1,7 @@
 import http from 'k6/http';
 import { check, sleep, fail } from 'k6';
 import { Trend, Rate } from 'k6/metrics';
-import { BASE_URL, JSON_HEADERS, authHeaders, createUser, randomFutureDate, randomString } from './helpers.js';
+import { BASE_URL, JSON_HEADERS, authHeaders, createAdminUser, randomFutureDate, randomString } from './helpers.js';
 
 const createDuration = new Trend('events_create_duration', true);
 const readDuration = new Trend('events_read_duration', true);
@@ -38,16 +38,16 @@ export const options = {
 };
 
 export function setup() {
-  const users = [];
-  for (let i = 0; i < 10; i++) {
-    users.push(createUser(`crud-${i}`));
-  }
-  return { users };
+  // Create (POST), update (PUT) and delete (DELETE) on /events are all
+  // admin-gated (AdminGuard). There is no non-admin path to create an event,
+  // so every VU exercises the CRUD flow as the shared admin account. Its email
+  // must be in the server's ADMIN_EMAILS allowlist (see .env.local).
+  const admin = createAdminUser();
+  return { admin };
 }
 
 export default function (data) {
-  const user = data.users[__VU % data.users.length];
-  const headers = authHeaders(user.token);
+  const headers = authHeaders(data.admin.token);
   let allOk = true;
 
   const createRes = http.post(
