@@ -182,10 +182,14 @@ export class AuthService {
     this.logger.log('Validating token');
     try {
       const payload = jwt.verify(dto.token, this.jwtSecret) as jwt.JwtPayload;
+      const role = payload['role'];
+      if (role !== 'user' && role !== 'admin') {
+        throw new Error('Invalid role claim');
+      }
       return {
         userId: payload['userId'] as string,
         email: payload['email'] as string,
-        role: payload['role'] as Role,
+        role,
       };
     } catch {
       throw new RpcException({
