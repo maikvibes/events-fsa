@@ -172,7 +172,8 @@ export class ApiGatewayController {
   @Patch('admin/users/:userId/role')
   updateUserRole(
     @Param('userId', ParseUUIDPipe) userId: string,
-    @Body() dto: UpdateUserRoleBodyDto,
+    @Body(new ZodValidationPipe(UpdateUserRoleSchema))
+    dto: UpdateUserRoleBodyDto,
   ) {
     return this.apiGatewayService.updateUserRole(userId, dto.role);
   }
