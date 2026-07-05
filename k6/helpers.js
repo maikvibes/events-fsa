@@ -18,8 +18,12 @@ export const REQUEST_TIMEOUT = '90s';
 
 export const DEFAULT_PASSWORD = __ENV.TEST_PASSWORD || 'Password123!';
 
-// Must match an entry in the server's ADMIN_EMAILS allowlist — the default
-// used across .env.example / scripts/generate-secrets.sh / cd.yml backfill.
+// Admin account for admin-gated endpoints. Must match an entry in the server's
+// ADMIN_EMAILS allowlist. The default here is the project convention (also used
+// by .env.example / cd.yml); for local dev, override ADMIN_EMAIL/ADMIN_PASSWORD
+// in the gitignored .env.local, which `npm run k6:*` loads (see scripts/run-k6.mjs).
+// If the account already exists, createAdminUser logs in, so ADMIN_PASSWORD must
+// be its real password.
 export const ADMIN_EMAIL = __ENV.ADMIN_EMAIL || 'admin@eventfsa.local';
 export const ADMIN_PASSWORD = __ENV.ADMIN_PASSWORD || DEFAULT_PASSWORD;
 

@@ -87,6 +87,10 @@ services:
       args:
         SERVICE_NAME: auth
     env_file: .env
+    environment:
+      AUTH_DATABASE_URL: postgresql://${POSTGRES_AUTH_USER:-auth_app}:${POSTGRES_AUTH_PASSWORD:-auth_pass}@postgres:5432/auth_db
+      EVENTS_DATABASE_URL: postgresql://${POSTGRES_EVENTS_USER:-events_app}:${POSTGRES_EVENTS_PASSWORD:-events_pass}@postgres:5432/events_db
+      NOTIFICATIONS_DATABASE_URL: postgresql://${POSTGRES_NOTIFICATIONS_USER:-notif_app}:${POSTGRES_NOTIFICATIONS_PASSWORD:-notif_pass}@postgres:5432/notifications_db
     command: ["sh", "-c", "npm run prisma:migrate:deploy"]
     networks:
       - backend
@@ -102,7 +106,12 @@ services:
         SERVICE_NAME: api-gateway
     ports:
       - "3000:${PORT:-3000}"
-    env_file: .env
+    env_file:
+      - .env
+      # Local-only overrides (e.g. ADMIN_EMAILS for load tests). Optional so
+      # the stack still comes up on machines that don't have the file.
+      - path: .env.local
+        required: false
     environment:
       NODE_ENV: development
       KAFKA_BROKER: kafka:29092

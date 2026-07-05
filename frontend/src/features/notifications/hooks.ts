@@ -8,12 +8,17 @@ function errorMessage(e: unknown) {
   return e instanceof ApiError ? e.message : e instanceof Error ? e.message : String(e)
 }
 
-export function useMyNotifications() {
+export function useMyNotifications(options?: {
+  refetchInterval?: number
+  refetchOnWindowFocus?: boolean
+}) {
   const { token, isAuthenticated } = useAuth()
   return useQuery({
     queryKey: ['notifications', 'mine'],
     queryFn: () => notificationsApi.listMine(token),
     enabled: isAuthenticated,
+    refetchInterval: options?.refetchInterval,
+    refetchOnWindowFocus: options?.refetchOnWindowFocus,
   })
 }
 

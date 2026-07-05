@@ -63,6 +63,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         const e = rpcError as Record<string, unknown>;
         status = (e.statusCode as number) ?? HttpStatus.BAD_GATEWAY;
         message = (e.message as string) ?? message;
+        errors = e.errors as unknown[] | undefined;
       }
     } else if (isGrpcServiceError(exception)) {
       // Errors from the AUTH_SERVICE/EVENTS_SERVICE gRPC clients surface here as

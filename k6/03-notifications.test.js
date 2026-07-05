@@ -1,7 +1,7 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Trend, Rate, Counter } from 'k6/metrics';
-import { BASE_URL, authHeaders, createUser, randomString } from './helpers.js';
+import { BASE_URL, authHeaders, createUser, createAdminUser, randomString } from './helpers.js';
 
 const tokenRegDuration = new Trend('notif_token_reg_duration', true);
 const sendDuration = new Trend('notif_send_duration', true);
@@ -52,7 +52,10 @@ export function setup() {
   for (let i = 0; i < 5; i++) {
     users.push(createUser(`notif-${i}`));
   }
-  return { users };
+  // /notifications/register-token is open to any user, but /notifications/send
+  // is admin-gated, so seed a shared admin account for the send scenario.
+  const admin = createAdminUser();
+  return { users, admin };
 }
 
 export function tokenRegistrationScenario(data) {
@@ -81,16 +84,17 @@ export function tokenRegistrationScenario(data) {
 }
 
 export function sendNotificationScenario(data) {
-  const user = data.users[__VU % data.users.length];
-  const headers = authHeaders(user.token);
-
-  const fakeDeviceToken = `device-token-${randomString(32)}`;
+  // Sending to an arbitrary recipient is admin-gated, so authenticate as the
+  // admin. The recipient is one of the seeded users (userId in the body); the
+  // server resolves that user's device tokens — the caller sends none. Note
+  // SendToUserSchema has no deviceToken field, so we don't pass one.
+  const recipient = data.users[__VU % data.users.length];
+  const headers = authHeaders(data.admin.token);
 
   const res = http.post(
     `${BASE_URL}/notifications/send`,
     JSON.stringify({
-      userId: user.userId,
-      deviceToken: fakeDeviceToken,
+      userId: recipient.userId,
       title: `Notification ${randomString(6)}`,
       body: `Load test notification body ${randomString(20)}`,
       data: { source: 'k6-load-test', timestamp: String(Date.now()) },
