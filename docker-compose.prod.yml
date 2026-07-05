@@ -108,6 +108,8 @@ services:
     environment:
       NODE_ENV: production
       KAFKA_BROKER: kafka:29092
+      AUTH_GRPC_URL: auth:50051
+      EVENTS_GRPC_URL: events:50052
       REDIS_HOST: redis
       REDIS_PORT: "6379"
     networks:
@@ -134,7 +136,7 @@ services:
     env_file: .env
     environment:
       NODE_ENV: production
-      KAFKA_BROKER: kafka:29092
+      AUTH_GRPC_PORT: "50051"
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       AUTH_DATABASE_URL: postgresql://${POSTGRES_AUTH_USER:-auth_app}:${POSTGRES_AUTH_PASSWORD:-auth_pass}@postgres:5432/auth_db
@@ -144,8 +146,6 @@ services:
       migrate:
         condition: service_completed_successfully
       postgres:
-        condition: service_healthy
-      kafka:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -157,6 +157,7 @@ services:
     environment:
       NODE_ENV: production
       KAFKA_BROKER: kafka:29092
+      EVENTS_GRPC_PORT: "50052"
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       EVENTS_DATABASE_URL: postgresql://${POSTGRES_EVENTS_USER:-events_app}:${POSTGRES_EVENTS_PASSWORD:-events_pass}@postgres:5432/events_db

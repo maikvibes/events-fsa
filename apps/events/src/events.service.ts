@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
+import { status } from '@grpc/grpc-js';
 import {
   CreateEventDto,
   UpdateEventDto,
@@ -160,7 +161,10 @@ export class EventsService {
       where: { id: dto.eventId },
     });
     if (!event)
-      throw new RpcException({ statusCode: 404, message: 'Event not found' });
+      throw new RpcException({
+        code: status.NOT_FOUND,
+        message: 'Event not found',
+      });
 
     const result = this.toDto(event);
     await this.cache.set(cacheKey, result, CacheTTL.EVENT);

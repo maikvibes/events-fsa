@@ -6,17 +6,21 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { ClientProxy } from '@nestjs/microservices';
+import type { ClientGrpc } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
-import { AUTH_SERVICE, AuthPatterns, TokenPayload } from '@app/shared';
+import { AUTH_SERVICE, AuthServiceClient, TokenPayload } from '@app/shared';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
+  private readonly authGrpc: AuthServiceClient;
+
   constructor(
     private readonly reflector: Reflector,
-    @Inject(AUTH_SERVICE) private readonly authClient: ClientProxy,
-  ) {}
+    @Inject(AUTH_SERVICE) authClient: ClientGrpc,
+  ) {
+    this.authGrpc = authClient.getService<AuthServiceClient>('AuthService');
+  }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
@@ -34,8 +38,8 @@ export class JwtAuthGuard implements CanActivate {
 
     const token = authHeader.slice(7);
     try {
-      const payload = await firstValueFrom<TokenPayload>(
-        this.authClient.send(AuthPatterns.VALIDATE_TOKEN, { token }),
+      const payload = await firstValueFrom(
+        this.authGrpc.validateToken({ token }),
       );
       request.user = payload;
       return true;

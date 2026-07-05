@@ -1,19 +1,21 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import * as adminApi from '@/features/admin/api'
 import { useAuth } from '@/contexts/auth-context'
 import { ApiError } from '@/services/http/client'
+import type { Role } from '@/types'
 
 function errorMessage(e: unknown) {
   return e instanceof ApiError ? e.message : e instanceof Error ? e.message : String(e)
 }
 
-export function useAdminUsers() {
+export function useAdminUsers(params: adminApi.ListUsersParams) {
   const { token, isAuthenticated } = useAuth()
   return useQuery({
-    queryKey: ['admin', 'users'],
-    queryFn: () => adminApi.listUsers(token),
+    queryKey: ['admin', 'users', params],
+    queryFn: () => adminApi.listUsers(token, params),
     enabled: isAuthenticated,
+    placeholderData: keepPreviousData,
   })
 }
 
@@ -27,6 +29,20 @@ export function useDeleteAdminUser() {
       qc.invalidateQueries({ queryKey: ['admin', 'users'] })
     },
     onError: (e) => toast.error('Could not delete user', { description: errorMessage(e) }),
+  })
+}
+
+export function useUpdateUserRole() {
+  const { token } = useAuth()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ userId, role }: { userId: string; role: Role }) =>
+      adminApi.updateUserRole(userId, role, token),
+    onSuccess: () => {
+      toast.success('Role updated')
+      qc.invalidateQueries({ queryKey: ['admin', 'users'] })
+    },
+    onError: (e) => toast.error('Could not update role', { description: errorMessage(e) }),
   })
 }
 

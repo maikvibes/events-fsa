@@ -22,4 +22,5 @@ WORKDIR /app
 COPY --from=base /app/node_modules ./node_modules
 ARG SERVICE_NAME
 COPY --from=builder /app/dist/apps/${SERVICE_NAME} ./dist
+COPY --from=builder /app/libs/shared/src/proto ./libs/shared/src/proto
 CMD ["node", "dist/main"]

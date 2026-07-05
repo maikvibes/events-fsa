@@ -1,16 +1,23 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
-import { ClientKafka } from '@nestjs/microservices';
+import type { ClientGrpc, ClientKafka } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
 import {
   AUTH_SERVICE,
   EVENTS_SERVICE,
   NOTIFICATIONS_SERVICE,
-  AuthPatterns,
-  EventsPatterns,
   NotificationsPatterns,
   KafkaTopics,
+  AuthServiceClient,
+  EventsServiceClient,
+  PaginatedUsers,
+  UserSummary,
+  UserSummaryWire,
+  Role,
+  EventDto,
+  EventDtoWire,
   RegisterDto,
   LoginDto,
+  ListUsersQueryDto,
   CreateEventDto,
   UpdateEventDto,
   AnnounceEventDto,
@@ -21,32 +28,21 @@ import {
 
 @Injectable()
 export class ApiGatewayService implements OnModuleInit {
+  private authGrpc!: AuthServiceClient;
+  private eventsGrpc!: EventsServiceClient;
+
   constructor(
-    @Inject(AUTH_SERVICE) private readonly authClient: ClientKafka,
-    @Inject(EVENTS_SERVICE) private readonly eventsClient: ClientKafka,
+    @Inject(AUTH_SERVICE) private readonly authClient: ClientGrpc,
+    @Inject(EVENTS_SERVICE) private readonly eventsClient: ClientGrpc,
     @Inject(NOTIFICATIONS_SERVICE)
     private readonly notificationsClient: ClientKafka,
   ) {}
 
   async onModuleInit() {
-    this.authClient.subscribeToResponseOf(AuthPatterns.REGISTER);
-    this.authClient.subscribeToResponseOf(AuthPatterns.LOGIN);
-    this.authClient.subscribeToResponseOf(AuthPatterns.VALIDATE_TOKEN);
-    this.authClient.subscribeToResponseOf(AuthPatterns.GET_PROFILE);
-    this.authClient.subscribeToResponseOf(AuthPatterns.LIST_USERS);
-    this.authClient.subscribeToResponseOf(AuthPatterns.DELETE_USER);
-
-    this.eventsClient.subscribeToResponseOf(EventsPatterns.CREATE);
-    this.eventsClient.subscribeToResponseOf(EventsPatterns.FIND_ALL);
-    this.eventsClient.subscribeToResponseOf(
-      EventsPatterns.FIND_FOLLOWED_BY_USER,
-    );
-    this.eventsClient.subscribeToResponseOf(EventsPatterns.FIND_ONE);
-    this.eventsClient.subscribeToResponseOf(EventsPatterns.UPDATE);
-    this.eventsClient.subscribeToResponseOf(EventsPatterns.DELETE);
-    this.eventsClient.subscribeToResponseOf(EventsPatterns.FOLLOW);
-    this.eventsClient.subscribeToResponseOf(EventsPatterns.UNFOLLOW);
-    this.eventsClient.subscribeToResponseOf(EventsPatterns.ANNOUNCE);
+    this.authGrpc =
+      this.authClient.getService<AuthServiceClient>('AuthService');
+    this.eventsGrpc =
+      this.eventsClient.getService<EventsServiceClient>('EventsService');
 
     this.notificationsClient.subscribeToResponseOf(
       NotificationsPatterns.SEND_TO_USER,
@@ -61,87 +57,93 @@ export class ApiGatewayService implements OnModuleInit {
       'notifications.register-token',
     );
 
-    await Promise.all([
-      this.authClient.connect(),
-      this.eventsClient.connect(),
-      this.notificationsClient.connect(),
-    ]);
+    await this.notificationsClient.connect();
   }
 
   register(dto: RegisterDto) {
-    return firstValueFrom(this.authClient.send(AuthPatterns.REGISTER, dto));
+    return firstValueFrom(this.authGrpc.register(dto));
   }
 
   login(dto: LoginDto) {
-    return firstValueFrom(this.authClient.send(AuthPatterns.LOGIN, dto));
+    return firstValueFrom(this.authGrpc.login(dto));
   }
 
   getProfile(userId: string) {
-    return firstValueFrom(
-      this.authClient.send(AuthPatterns.GET_PROFILE, { userId }),
+    return firstValueFrom(this.authGrpc.getProfile({ userId }));
+  }
+
+  async listUsers(query: ListUsersQueryDto = {}): Promise<PaginatedUsers> {
+    const result = await firstValueFrom(this.authGrpc.listUsers(query));
+    return {
+      items: result.items.map((u) => this.toUserSummary(u)),
+      total: result.total,
+      page: result.page,
+      pageSize: result.pageSize,
+    };
+  }
+
+  async updateUserRole(userId: string, role: Role): Promise<UserSummary> {
+    const user = await firstValueFrom(
+      this.authGrpc.updateUserRole({ userId, role }),
     );
+    return this.toUserSummary(user);
   }
 
-  listUsers() {
-    return firstValueFrom(this.authClient.send(AuthPatterns.LIST_USERS, {}));
+  async deleteUser(userId: string): Promise<void> {
+    await firstValueFrom(this.authGrpc.deleteUser({ userId }));
   }
 
-  deleteUser(userId: string) {
-    return firstValueFrom(
-      this.authClient.send(AuthPatterns.DELETE_USER, { userId }),
+  async createEvent(dto: CreateEventDto): Promise<EventDto> {
+    const wire = await firstValueFrom(
+      this.eventsGrpc.create({ ...dto, date: dto.date.toISOString() }),
     );
-  }
-
-  createEvent(dto: CreateEventDto) {
-    return firstValueFrom(this.eventsClient.send(EventsPatterns.CREATE, dto));
+    return this.toEventDto(wire);
   }
 
   // Discovery browse — every event. callerUserId (if the request was
   // authenticated) gets each item annotated with isFollowing.
-  findAllEvents(callerUserId?: string) {
-    return firstValueFrom(
-      this.eventsClient.send(EventsPatterns.FIND_ALL, { callerUserId }),
+  async findAllEvents(callerUserId?: string): Promise<EventDto[]> {
+    const { events } = await firstValueFrom(
+      this.eventsGrpc.findAll({ callerUserId }),
     );
+    return events.map((e) => this.toEventDto(e));
   }
 
   // "My events" now means events the user follows, not events they created
   // (event creation is admin-only).
-  findMyEvents(userId: string) {
-    return firstValueFrom(
-      this.eventsClient.send(EventsPatterns.FIND_FOLLOWED_BY_USER, { userId }),
+  async findMyEvents(userId: string): Promise<EventDto[]> {
+    const { events } = await firstValueFrom(
+      this.eventsGrpc.findFollowedByUser({ userId }),
     );
+    return events.map((e) => this.toEventDto(e));
   }
 
-  findEvent(eventId: string) {
-    return firstValueFrom(
-      this.eventsClient.send(EventsPatterns.FIND_ONE, { eventId }),
-    );
+  async findEvent(eventId: string): Promise<EventDto> {
+    const wire = await firstValueFrom(this.eventsGrpc.findOne({ eventId }));
+    return this.toEventDto(wire);
   }
 
-  updateEvent(dto: UpdateEventDto) {
-    return firstValueFrom(this.eventsClient.send(EventsPatterns.UPDATE, dto));
+  async updateEvent(dto: UpdateEventDto): Promise<EventDto> {
+    const wire = await firstValueFrom(
+      this.eventsGrpc.update({ ...dto, date: dto.date?.toISOString() }),
+    );
+    return this.toEventDto(wire);
   }
 
-  deleteEvent(eventId: string, userId: string) {
-    return firstValueFrom(
-      this.eventsClient.send(EventsPatterns.DELETE, { eventId, userId }),
-    );
+  async deleteEvent(eventId: string, userId: string): Promise<void> {
+    await firstValueFrom(this.eventsGrpc.delete({ eventId, userId }));
   }
 
-  followEvent(userId: string, eventId: string) {
-    return firstValueFrom(
-      this.eventsClient.send(EventsPatterns.FOLLOW, { userId, eventId }),
-    );
+  async followEvent(userId: string, eventId: string): Promise<void> {
+    await firstValueFrom(this.eventsGrpc.follow({ eventId, userId }));
   }
 
-  unfollowEvent(userId: string, eventId: string) {
-    return firstValueFrom(
-      this.eventsClient.send(EventsPatterns.UNFOLLOW, { userId, eventId }),
-    );
+  async unfollowEvent(userId: string, eventId: string): Promise<void> {
+    await firstValueFrom(this.eventsGrpc.unfollow({ eventId, userId }));
   }
 
   announceEvent(dto: AnnounceEventDto) {
-    return firstValueFrom(this.eventsClient.send(EventsPatterns.ANNOUNCE, dto));
+    return firstValueFrom(this.eventsGrpc.announce(dto));
   }
 
   sendNotification(dto: SendToUserDto) {
@@ -193,5 +195,28 @@ export class ApiGatewayService implements OnModuleInit {
     return firstValueFrom(
       this.notificationsClient.send(NotificationsPatterns.FIND_ALL, {}),
     );
+  }
+
+  private toUserSummary(u: UserSummaryWire): UserSummary {
+    return {
+      userId: u.userId,
+      email: u.email,
+      name: u.name,
+      role: u.role,
+      createdAt: new Date(u.createdAt),
+    };
+  }
+
+  private toEventDto(w: EventDtoWire): EventDto {
+    return {
+      eventId: w.eventId,
+      userId: w.userId,
+      title: w.title,
+      description: w.description,
+      date: new Date(w.date),
+      createdAt: new Date(w.createdAt),
+      updatedAt: new Date(w.updatedAt),
+      ...(w.isFollowing !== undefined && { isFollowing: w.isFollowing }),
+    };
   }
 }

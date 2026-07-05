@@ -8,14 +8,29 @@ import {
   EVENTS_SERVICE,
   NOTIFICATIONS_SERVICE,
   kafkaClientConfig,
+  grpcClientConfig,
+  AUTH_GRPC_PACKAGE,
+  AUTH_PROTO_FILE,
+  EVENTS_GRPC_PACKAGE,
+  EVENTS_PROTO_FILE,
 } from '@app/shared';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ClientsModule.register([
-      kafkaClientConfig(AUTH_SERVICE),
-      kafkaClientConfig(EVENTS_SERVICE),
+      grpcClientConfig(
+        AUTH_SERVICE,
+        AUTH_GRPC_PACKAGE,
+        AUTH_PROTO_FILE,
+        process.env.AUTH_GRPC_URL ?? 'localhost:50051',
+      ),
+      grpcClientConfig(
+        EVENTS_SERVICE,
+        EVENTS_GRPC_PACKAGE,
+        EVENTS_PROTO_FILE,
+        process.env.EVENTS_GRPC_URL ?? 'localhost:50052',
+      ),
       kafkaClientConfig(NOTIFICATIONS_SERVICE),
     ]),
   ],
