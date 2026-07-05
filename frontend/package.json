@@ -7,8 +7,12 @@
     "generate:sw": "node ../scripts/generate-sw.mjs",
     "predev": "npm run generate:sw",
     "dev": "vite",
+    "predev:prod": "npm run generate:sw",
+    "dev:prod": "vite --mode prod",
     "prebuild": "npm run generate:sw",
     "build": "tsc -b && vite build",
+    "prebuild:prod": "npm run generate:sw",
+    "build:prod": "tsc -b && vite build --mode prod",
     "lint": "eslint .",
     "preview": "vite preview"
   },

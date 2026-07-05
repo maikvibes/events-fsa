@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { PushForegroundListener } from '@/features/push/foreground-listener'
+import { PushAutoEnable } from '@/features/push/auto-enable'
 import { AppShell } from '@/components/layout/app-shell'
 import { ProtectedRoute } from '@/components/layout/protected-route'
 import LoginPage from '@/pages/login-page'
@@ -19,6 +20,7 @@ export default function App() {
   return (
     <>
       <PushForegroundListener />
+      <PushAutoEnable />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />

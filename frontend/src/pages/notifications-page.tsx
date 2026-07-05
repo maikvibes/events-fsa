@@ -6,10 +6,10 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/
 import { PageHeader } from '@/components/common/page-header'
 import { useMyNotifications } from '@/features/notifications/hooks'
 
-function statusVariant(status: string): 'default' | 'secondary' | 'destructive' {
+function statusVariant(status: string): 'success' | 'secondary' | 'destructive' {
   const s = status.toLowerCase()
   if (s.includes('fail') || s.includes('error')) return 'destructive'
-  if (s.includes('sent') || s.includes('ok') || s.includes('deliver')) return 'default'
+  if (s.includes('sent') || s.includes('ok') || s.includes('deliver')) return 'success'
   return 'secondary'
 }
 
