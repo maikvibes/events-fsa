@@ -1,0 +1,95 @@
+syntax = "proto3";
+
+package auth;
+
+service AuthService {
+  rpc Register (RegisterRequest) returns (AuthResponse);
+  rpc Login (LoginRequest) returns (AuthResponse);
+  rpc ValidateToken (ValidateTokenRequest) returns (TokenPayload);
+  rpc GetProfile (GetProfileRequest) returns (ProfileResponse);
+  rpc ListUsers (ListUsersRequest) returns (PaginatedUsers);
+  rpc UpdateUserRole (UpdateUserRoleRequest) returns (UserSummary);
+  rpc DeleteUser (DeleteUserRequest) returns (Empty);
+}
+
+message Empty {}
+
+message RegisterRequest {
+  string email = 1;
+  string password = 2;
+  string name = 3;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message AuthResponse {
+  string userId = 1;
+  string email = 2;
+  string name = 3;
+  string role = 4;
+  string accessToken = 5;
+}
+
+message ValidateTokenRequest {
+  string token = 1;
+}
+
+message TokenPayload {
+  string userId = 1;
+  string email = 2;
+  string role = 3;
+  int32 iat = 4;
+  int32 exp = 5;
+}
+
+message GetProfileRequest {
+  string userId = 1;
+}
+
+message ProfileResponse {
+  string userId = 1;
+  string email = 2;
+  string name = 3;
+  string role = 4;
+}
+
+message UserSummary {
+  string userId = 1;
+  string email = 2;
+  string name = 3;
+  string role = 4;
+  string createdAt = 5;
+}
+
+// Query params for the paginated/searchable/filterable admin users list.
+// All optional (proto3 explicit presence) so an unset field stays undefined
+// on the wire and AuthService.findAll applies its own defaults.
+message ListUsersRequest {
+  optional int32 page = 1;
+  optional int32 pageSize = 2;
+  optional string search = 3;
+  optional string role = 4;
+  optional string createdFrom = 5;
+  optional string createdTo = 6;
+  optional string sortBy = 7;
+  optional string sortOrder = 8;
+}
+
+message PaginatedUsers {
+  repeated UserSummary items = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 pageSize = 4;
+}
+
+message UpdateUserRoleRequest {
+  string userId = 1;
+  string role = 2;
+}
+
+message DeleteUserRequest {
+  string userId = 1;
+}

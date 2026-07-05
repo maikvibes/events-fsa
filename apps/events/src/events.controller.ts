@@ -1,7 +1,6 @@
 import { Controller } from '@nestjs/common';
-import { MessagePattern, Payload } from '@nestjs/microservices';
+import { GrpcMethod } from '@nestjs/microservices';
 import { EventsService } from './events.service';
-import { EventsPatterns } from '@app/shared';
 import type {
   CreateEventDto,
   UpdateEventDto,
@@ -10,54 +9,110 @@ import type {
   FindEventsByUserDto,
   FollowEventDto,
   AnnounceEventDto,
+  EventDto,
+  CreateEventRequest,
+  FindAllRequest,
+  FindEventRequest,
+  FindEventsByUserRequest,
+  UpdateEventRequest,
+  DeleteEventRequest,
+  FollowEventRequest,
+  AnnounceEventRequest,
+  EventDtoWire,
+  EventListWire,
+  AnnounceResponseWire,
 } from '@app/shared';
+import { Empty } from '@app/shared';
 
 @Controller()
 export class EventsController {
   constructor(private readonly eventsService: EventsService) {}
 
-  @MessagePattern(EventsPatterns.CREATE)
-  create(@Payload() dto: CreateEventDto) {
-    return this.eventsService.create(dto);
+  @GrpcMethod('EventsService', 'Create')
+  async create(data: CreateEventRequest): Promise<EventDtoWire> {
+    const dto: CreateEventDto = {
+      userId: data.userId,
+      title: data.title,
+      description: data.description,
+      date: new Date(data.date),
+    };
+    return this.toWire(await this.eventsService.create(dto));
   }
 
-  @MessagePattern(EventsPatterns.FIND_ALL)
-  findAll(@Payload() dto: { callerUserId?: string }) {
-    return this.eventsService.findAll(dto.callerUserId);
+  @GrpcMethod('EventsService', 'FindAll')
+  async findAll(data: FindAllRequest): Promise<EventListWire> {
+    const events = await this.eventsService.findAll(data.callerUserId);
+    return { events: events.map((e) => this.toWire(e)) };
   }
 
-  @MessagePattern(EventsPatterns.FIND_FOLLOWED_BY_USER)
-  findFollowedByUser(@Payload() dto: FindEventsByUserDto) {
-    return this.eventsService.findFollowedByUser(dto);
+  @GrpcMethod('EventsService', 'FindFollowedByUser')
+  async findFollowedByUser(
+    data: FindEventsByUserRequest,
+  ): Promise<EventListWire> {
+    const dto: FindEventsByUserDto = { userId: data.userId };
+    const events = await this.eventsService.findFollowedByUser(dto);
+    return { events: events.map((e) => this.toWire(e)) };
   }
 
-  @MessagePattern(EventsPatterns.FIND_ONE)
-  findOne(@Payload() dto: FindEventDto) {
-    return this.eventsService.findOne(dto);
+  @GrpcMethod('EventsService', 'FindOne')
+  async findOne(data: FindEventRequest): Promise<EventDtoWire> {
+    const dto: FindEventDto = { eventId: data.eventId };
+    return this.toWire(await this.eventsService.findOne(dto));
   }
 
-  @MessagePattern(EventsPatterns.UPDATE)
-  update(@Payload() dto: UpdateEventDto) {
-    return this.eventsService.update(dto);
+  @GrpcMethod('EventsService', 'Update')
+  async update(data: UpdateEventRequest): Promise<EventDtoWire> {
+    const dto: UpdateEventDto = {
+      eventId: data.eventId,
+      userId: data.userId,
+      ...(data.title !== undefined && { title: data.title }),
+      ...(data.description !== undefined && { description: data.description }),
+      ...(data.date !== undefined && { date: new Date(data.date) }),
+    };
+    return this.toWire(await this.eventsService.update(dto));
   }
 
-  @MessagePattern(EventsPatterns.DELETE)
-  delete(@Payload() dto: DeleteEventDto) {
-    return this.eventsService.delete(dto);
+  @GrpcMethod('EventsService', 'Delete')
+  async delete(data: DeleteEventRequest): Promise<Empty> {
+    const dto: DeleteEventDto = { eventId: data.eventId, userId: data.userId };
+    await this.eventsService.delete(dto);
+    return {};
   }
 
-  @MessagePattern(EventsPatterns.FOLLOW)
-  follow(@Payload() dto: FollowEventDto) {
-    return this.eventsService.follow(dto);
+  @GrpcMethod('EventsService', 'Follow')
+  async follow(data: FollowEventRequest): Promise<Empty> {
+    const dto: FollowEventDto = { eventId: data.eventId, userId: data.userId };
+    await this.eventsService.follow(dto);
+    return {};
   }
 
-  @MessagePattern(EventsPatterns.UNFOLLOW)
-  unfollow(@Payload() dto: FollowEventDto) {
-    return this.eventsService.unfollow(dto);
+  @GrpcMethod('EventsService', 'Unfollow')
+  async unfollow(data: FollowEventRequest): Promise<Empty> {
+    const dto: FollowEventDto = { eventId: data.eventId, userId: data.userId };
+    await this.eventsService.unfollow(dto);
+    return {};
   }
 
-  @MessagePattern(EventsPatterns.ANNOUNCE)
-  announce(@Payload() dto: AnnounceEventDto) {
+  @GrpcMethod('EventsService', 'Announce')
+  announce(data: AnnounceEventRequest): Promise<AnnounceResponseWire> {
+    const dto: AnnounceEventDto = {
+      eventId: data.eventId,
+      title: data.title,
+      body: data.body,
+    };
     return this.eventsService.announce(dto);
+  }
+
+  private toWire(e: EventDto): EventDtoWire {
+    return {
+      eventId: e.eventId,
+      userId: e.userId,
+      title: e.title,
+      description: e.description,
+      date: e.date.toISOString(),
+      createdAt: e.createdAt.toISOString(),
+      updatedAt: e.updatedAt.toISOString(),
+      ...(e.isFollowing !== undefined && { isFollowing: e.isFollowing }),
+    };
   }
 }

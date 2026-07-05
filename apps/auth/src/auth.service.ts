@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RpcException } from '@nestjs/microservices';
+import { status } from '@grpc/grpc-js';
 import * as crypto from 'crypto';
 import * as jwt from 'jsonwebtoken';
 import type {
@@ -41,7 +42,7 @@ export class AuthService {
     });
     if (existing)
       throw new RpcException({
-        statusCode: 409,
+        code: status.ALREADY_EXISTS,
         message: 'Email already in use',
       });
 
@@ -73,7 +74,7 @@ export class AuthService {
     });
     if (!user || !this.verifyPassword(dto.password, user.password)) {
       throw new RpcException({
-        statusCode: 401,
+        code: status.UNAUTHENTICATED,
         message: 'Invalid credentials',
       });
     }
@@ -94,7 +95,10 @@ export class AuthService {
   async getProfile(userId: string): Promise<ProfileResponse> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user)
-      throw new RpcException({ statusCode: 404, message: 'User not found' });
+      throw new RpcException({
+        code: status.NOT_FOUND,
+        message: 'User not found',
+      });
     return {
       userId: user.id,
       email: user.email,
@@ -156,7 +160,10 @@ export class AuthService {
     try {
       await this.prisma.user.delete({ where: { id: userId } });
     } catch {
-      throw new RpcException({ statusCode: 404, message: 'User not found' });
+      throw new RpcException({
+        code: status.NOT_FOUND,
+        message: 'User not found',
+      });
     }
   }
 
@@ -174,7 +181,10 @@ export class AuthService {
         createdAt: user.createdAt,
       };
     } catch {
-      throw new RpcException({ statusCode: 404, message: 'User not found' });
+      throw new RpcException({
+        code: status.NOT_FOUND,
+        message: 'User not found',
+      });
     }
   }
 
@@ -193,7 +203,7 @@ export class AuthService {
       };
     } catch {
       throw new RpcException({
-        statusCode: 401,
+        code: status.UNAUTHENTICATED,
         message: 'Invalid or expired token',
       });
     }

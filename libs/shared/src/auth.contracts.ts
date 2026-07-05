@@ -1,12 +1,8 @@
-export const AuthPatterns = {
-  REGISTER: 'auth.register',
-  LOGIN: 'auth.login',
-  VALIDATE_TOKEN: 'auth.validate-token',
-  GET_PROFILE: 'auth.get-profile',
-  LIST_USERS: 'auth.list-users',
-  DELETE_USER: 'auth.delete-user',
-  UPDATE_USER_ROLE: 'auth.update-user-role',
-} as const;
+import { Observable } from 'rxjs';
+import { Empty } from './grpc-config';
+
+export const AUTH_GRPC_PACKAGE = 'auth';
+export const AUTH_PROTO_FILE = 'auth.proto';
 
 export type Role = 'user' | 'admin';
 
@@ -46,4 +42,74 @@ export interface TokenPayload {
   role: Role;
   iat?: number;
   exp?: number;
+}
+
+// --- gRPC wire types (auth.proto) ---
+
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  name: string;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface ValidateTokenRequest {
+  token: string;
+}
+
+export interface GetProfileRequest {
+  userId: string;
+}
+
+export interface DeleteUserRequest {
+  userId: string;
+}
+
+// Mirrors auth.proto ListUsersRequest — every field optional; the gateway just
+// forwards its already-parsed ListUsersQueryDto, which is structurally this.
+export interface ListUsersRequest {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  role?: Role;
+  createdFrom?: string;
+  createdTo?: string;
+  sortBy?: 'name' | 'email' | 'createdAt';
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface UpdateUserRoleRequest {
+  userId: string;
+  role: Role;
+}
+
+// createdAt travels as an ISO string over the wire (proto3 has no Date type);
+// the gateway converts it back to a real Date to keep `UserSummary` accurate.
+export interface UserSummaryWire {
+  userId: string;
+  email: string;
+  name: string;
+  role: Role;
+  createdAt: string;
+}
+
+export interface PaginatedUsersWire {
+  items: UserSummaryWire[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AuthServiceClient {
+  register(data: RegisterRequest): Observable<AuthResponse>;
+  login(data: LoginRequest): Observable<AuthResponse>;
+  validateToken(data: ValidateTokenRequest): Observable<TokenPayload>;
+  getProfile(data: GetProfileRequest): Observable<ProfileResponse>;
+  listUsers(data: ListUsersRequest): Observable<PaginatedUsersWire>;
+  updateUserRole(data: UpdateUserRoleRequest): Observable<UserSummaryWire>;
+  deleteUser(data: DeleteUserRequest): Observable<Empty>;
 }

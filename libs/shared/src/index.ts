@@ -2,6 +2,7 @@ export * from './shared.module';
 export * from './shared.service';
 export * from './kafka.contracts';
 export * from './kafka-config';
+export * from './grpc-config';
 export * from './firebase.contracts';
 export * from './redis.contracts';
 export * from './schemas';

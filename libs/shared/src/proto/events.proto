@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package events;
+
+service EventsService {
+  rpc Create (CreateEventRequest) returns (EventDto);
+  rpc FindAll (FindAllRequest) returns (EventList);
+  rpc FindFollowedByUser (FindEventsByUserRequest) returns (EventList);
+  rpc FindOne (FindEventRequest) returns (EventDto);
+  rpc Update (UpdateEventRequest) returns (EventDto);
+  rpc Delete (DeleteEventRequest) returns (Empty);
+  rpc Follow (FollowEventRequest) returns (Empty);
+  rpc Unfollow (FollowEventRequest) returns (Empty);
+  rpc Announce (AnnounceEventRequest) returns (AnnounceResponse);
+}
+
+message Empty {}
+
+message CreateEventRequest {
+  string userId = 1;
+  string title = 2;
+  string description = 3;
+  string date = 4;
+}
+
+message FindAllRequest {
+  optional string callerUserId = 1;
+}
+
+message FindEventsByUserRequest {
+  string userId = 1;
+}
+
+message FindEventRequest {
+  string eventId = 1;
+}
+
+message UpdateEventRequest {
+  string eventId = 1;
+  string userId = 2;
+  optional string title = 3;
+  optional string description = 4;
+  optional string date = 5;
+}
+
+message DeleteEventRequest {
+  string eventId = 1;
+  string userId = 2;
+}
+
+message FollowEventRequest {
+  string eventId = 1;
+  string userId = 2;
+}
+
+message AnnounceEventRequest {
+  string eventId = 1;
+  string title = 2;
+  string body = 3;
+}
+
+message AnnounceResponse {
+  int32 notified = 1;
+}
+
+message EventDto {
+  string eventId = 1;
+  string userId = 2;
+  string title = 3;
+  string description = 4;
+  string date = 5;
+  string createdAt = 6;
+  string updatedAt = 7;
+  optional bool isFollowing = 8;
+}
+
+message EventList {
+  repeated EventDto events = 1;
+}

@@ -5,23 +5,25 @@ import {
   Transport,
 } from '@nestjs/microservices';
 import { ValidationPipe } from '@nestjs/common';
+import { status } from '@grpc/grpc-js';
 import { AuthModule } from './auth.module';
-import { kafkaBaseClientOptions } from '@app/shared/kafka-config';
+import {
+  protoPath,
+  grpcLoaderOptions,
+  AUTH_GRPC_PACKAGE,
+  AUTH_PROTO_FILE,
+} from '@app/shared';
 
-// force image rebuild: the LIST_USERS/DELETE_USER handlers never shipped
-// because the commit that added them failed CI lint, so this service kept
-// running its pre-admin-panel image after the next (lint-fix-only) push only
-// rebuilt api-gateway.
 async function bootstrap() {
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(
     AuthModule,
     {
-      transport: Transport.KAFKA,
+      transport: Transport.GRPC,
       options: {
-        client: kafkaBaseClientOptions('auth'),
-        consumer: {
-          groupId: 'auth-consumer',
-        },
+        package: AUTH_GRPC_PACKAGE,
+        protoPath: protoPath(AUTH_PROTO_FILE),
+        url: `0.0.0.0:${process.env.AUTH_GRPC_PORT ?? '50051'}`,
+        loader: grpcLoaderOptions,
       },
     },
   );
@@ -29,8 +31,11 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
-      exceptionFactory: (errors) =>
-        new RpcException({ statusCode: 400, message: errors }),
+      exceptionFactory: () =>
+        new RpcException({
+          code: status.INVALID_ARGUMENT,
+          message: 'Validation failed',
+        }),
     }),
   );
 

@@ -5,19 +5,25 @@ import {
   Transport,
 } from '@nestjs/microservices';
 import { ValidationPipe } from '@nestjs/common';
+import { status } from '@grpc/grpc-js';
 import { EventsModule } from './events.module';
-import { kafkaBaseClientOptions } from '@app/shared/kafka-config';
+import {
+  protoPath,
+  grpcLoaderOptions,
+  EVENTS_GRPC_PACKAGE,
+  EVENTS_PROTO_FILE,
+} from '@app/shared';
 
 async function bootstrap() {
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(
     EventsModule,
     {
-      transport: Transport.KAFKA,
+      transport: Transport.GRPC,
       options: {
-        client: kafkaBaseClientOptions('events'),
-        consumer: {
-          groupId: 'events-consumer',
-        },
+        package: EVENTS_GRPC_PACKAGE,
+        protoPath: protoPath(EVENTS_PROTO_FILE),
+        url: `0.0.0.0:${process.env.EVENTS_GRPC_PORT ?? '50052'}`,
+        loader: grpcLoaderOptions,
       },
     },
   );
@@ -25,8 +31,11 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
-      exceptionFactory: (errors) =>
-        new RpcException({ statusCode: 400, message: errors }),
+      exceptionFactory: () =>
+        new RpcException({
+          code: status.INVALID_ARGUMENT,
+          message: 'Validation failed',
+        }),
     }),
   );
 
