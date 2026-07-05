@@ -37,6 +37,7 @@ import {
   BroadcastSchema,
   RegisterDeviceTokenSchema,
   ListUsersQuerySchema,
+  UpdateUserRoleSchema,
 } from '@app/shared';
 import type {
   TokenPayload,
