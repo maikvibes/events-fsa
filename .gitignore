@@ -23,3 +23,6 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# k6 orchestrated-test output
+k6/out/

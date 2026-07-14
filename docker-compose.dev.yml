@@ -255,6 +255,28 @@ services:
         - path: ./Dockerfile
           action: rebuild
 
+  # Broadcast completion collector: consumes notification.broadcast-batch-completed
+  # and serves a live per-instance dashboard (http://localhost:4500) + JSON API
+  # that k6/08-orchestrated-broadcast.test.js polls. Runs on the backend network
+  # so it can reach the broker at its advertised hostname (kafka:29092).
+  collector:
+    image: node:22-alpine
+    working_dir: /app
+    volumes:
+      - ./scripts/broadcast-collector.mjs:/app/broadcast-collector.mjs:ro
+    command: sh -c "npm install --no-save --no-fund --no-audit kafkajs@2.2.4 && node broadcast-collector.mjs"
+    environment:
+      KAFKA_BROKER: kafka:29092
+      PORT: "4500"
+      SETTLE_MS: "4000"
+    ports:
+      - "4500:4500"
+    networks:
+      - backend
+    depends_on:
+      kafka:
+        condition: service_healthy
+
 networks:
   backend:
 
