@@ -16,6 +16,8 @@ services:
       POSTGRES_EVENTS_PASSWORD: ${POSTGRES_EVENTS_PASSWORD:-events_pass}
       POSTGRES_NOTIFICATIONS_USER: ${POSTGRES_NOTIFICATIONS_USER:-notif_app}
       POSTGRES_NOTIFICATIONS_PASSWORD: ${POSTGRES_NOTIFICATIONS_PASSWORD:-notif_pass}
+      POSTGRES_ANALYTICS_USER: ${POSTGRES_ANALYTICS_USER:-analytics_app}
+      POSTGRES_ANALYTICS_PASSWORD: ${POSTGRES_ANALYTICS_PASSWORD:-analytics_pass}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-dbs.sql:/docker-entrypoint-initdb.d/00-init-dbs.sql:ro
@@ -92,7 +94,13 @@ services:
       args:
         SERVICE_NAME: auth
     env_file: .env
-    command: ["sh", "-c", "npm run prisma:migrate:deploy"]
+    # ensure-dbs reconciles per-service databases/roles first, so adding a
+    # service (e.g. analytics) never breaks a deploy against an existing volume
+    # where the postgres init scripts have already run. ANALYTICS_DATABASE_URL is
+    # set here since older prod .env files predate the analytics service.
+    environment:
+      ANALYTICS_DATABASE_URL: postgresql://${POSTGRES_ANALYTICS_USER:-analytics_app}:${POSTGRES_ANALYTICS_PASSWORD:-analytics_pass}@postgres:5432/analytics_db
+    command: ["sh", "-c", "node scripts/ensure-dbs.mjs && npm run prisma:migrate:deploy"]
     networks:
       - backend
     depends_on:
@@ -193,6 +201,24 @@ services:
       kafka:
         condition: service_healthy
       redis:
+        condition: service_healthy
+
+  analytics:
+    image: ghcr.io/maikvibes/events-fsa-analytics:${IMAGE_TAG:-dev}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      KAFKA_BROKER: kafka:29092
+      ANALYTICS_DATABASE_URL: postgresql://${POSTGRES_ANALYTICS_USER:-analytics_app}:${POSTGRES_ANALYTICS_PASSWORD:-analytics_pass}@postgres:5432/analytics_db
+    networks:
+      - backend
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
 
 networks:
