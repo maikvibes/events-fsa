@@ -15,13 +15,16 @@ COPY frontend ./
 # green without real web-push credentials configured; override with
 # --build-arg (or real repo secrets, once set up) for working push notifications.
 ARG VITE_API_BASE_URL=https://events-api.maik.io.vn/api/v1
-ARG VITE_FIREBASE_API_KEY=placeholder-api-key
-ARG VITE_FIREBASE_AUTH_DOMAIN=placeholder.firebaseapp.com
-ARG VITE_FIREBASE_PROJECT_ID=placeholder-project
-ARG VITE_FIREBASE_STORAGE_BUCKET=placeholder.firebasestorage.app
-ARG VITE_FIREBASE_MESSAGING_SENDER_ID=000000000000
-ARG VITE_FIREBASE_APP_ID=1:000000000000:web:0000000000000000000000
-ARG VITE_FIREBASE_MEASUREMENT_ID=G-0000000000
+# Firebase *web* config — public client identifiers (protected by Firebase
+# security rules + authorized domains, not by secrecy), so it's safe to bake in.
+# Override with --build-arg (or repo vars in CI) to point at a different project.
+ARG VITE_FIREBASE_API_KEY=AIzaSyAj8sGNbanK4ZEyfkX6oCef682kRALhvJc
+ARG VITE_FIREBASE_AUTH_DOMAIN=test-836e1.firebaseapp.com
+ARG VITE_FIREBASE_PROJECT_ID=test-836e1
+ARG VITE_FIREBASE_STORAGE_BUCKET=test-836e1.firebasestorage.app
+ARG VITE_FIREBASE_MESSAGING_SENDER_ID=916952965378
+ARG VITE_FIREBASE_APP_ID=1:916952965378:web:e403ab48979498b058621b
+ARG VITE_FIREBASE_MEASUREMENT_ID=G-59NFVR926J
 RUN printf '%s\n' \
       "VITE_API_BASE_URL=$VITE_API_BASE_URL" \
       "VITE_FIREBASE_API_KEY=$VITE_FIREBASE_API_KEY" \
