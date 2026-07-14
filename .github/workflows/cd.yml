@@ -129,11 +129,13 @@ jobs:
               fi
             fi
 
+            RAN_MIGRATIONS=false
             if [ "$FULL_DEPLOY" = "true" ]; then
               echo "Full deploy (first run, or a shared/infra file changed)"
               docker compose -f docker-compose.prod.yml pull
               docker compose -f docker-compose.prod.yml build migrate
               docker compose -f docker-compose.prod.yml up -d
+              RAN_MIGRATIONS=true
             else
               SERVICES=""
               echo "$CHANGED_FILES" | grep -q '^apps/api-gateway/'    && SERVICES="$SERVICES api-gateway"
@@ -151,11 +153,25 @@ jobs:
                 echo "No deployable service changed — skipping pull/restart."
               fi
 
-              if echo "$CHANGED_FILES" | grep -qE '^apps/(auth|events|notifications)/prisma/'; then
+              if echo "$CHANGED_FILES" | grep -qE '^apps/(auth|events|notifications|analytics)/prisma/'; then
                 echo "Schema change detected — running migrations"
                 docker compose -f docker-compose.prod.yml build migrate
                 docker compose -f docker-compose.prod.yml run --rm migrate
+                RAN_MIGRATIONS=true
               fi
+            fi
+
+            # Seed baseline data whenever migrations ran (fresh server, or a
+            # schema change). The seed is idempotent (upserts), so re-running is
+            # safe. Run it through the migrate image, which has the source + CLI:
+            #   - generate the prisma clients seed.ts imports (auth + events); the
+            #     migrate build only generates auth's, so events' is missing.
+            #   - read DB creds/JWT from the injected env_file, so no --env-file
+            #     (the .env file isn't baked into the image) is needed.
+            if [ "$RAN_MIGRATIONS" = "true" ]; then
+              echo "Seeding baseline data"
+              docker compose -f docker-compose.prod.yml run --rm migrate \
+                sh -c "npm run prisma:generate && node -r ts-node/register/transpile-only scripts/seed.ts"
             fi
             docker image prune -f
         env:
