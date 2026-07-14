@@ -35,6 +35,9 @@ RUN printf '%s\n' \
     npm run build
 
 FROM nginx:alpine AS runner
+# Replace the stock server block with an SPA-aware one (try_files fallback to
+# index.html) so client-side routes resolve on refresh / direct navigation.
+COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/frontend/dist /usr/share/nginx/html
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

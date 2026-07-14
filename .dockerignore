@@ -1,7 +1,34 @@
-node_modules
-dist
-.env
-*.log
-coverage
+# Dependencies & build output (nested too — plain `node_modules` only matches
+# the repo root, so the 431MB frontend/node_modules was being shipped).
+**/node_modules
+**/dist
+**/build
+**/coverage
+**/.turbo
+**/.vite
+
+# Generated Prisma clients
 apps/*/src/generated
+
+# Secrets / env
+.env
+.env.*
+!.env.example
+
+# VCS & CI
+.git
+.github
+.gitignore
+
+# Not needed by any image build (backend Dockerfile + frontend/Dockerfile)
+mobile
+k6
+docs
 nginx
+
+# Logs & misc
+*.log
+.DS_Store
+Thumbs.db
+.vscode
+.idea
