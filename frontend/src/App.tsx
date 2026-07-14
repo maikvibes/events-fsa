@@ -35,7 +35,9 @@ export default function App() {
             <Route path="my-events" element={<MyEventsPage />} />
             <Route path="notifications" element={<NotificationsPage />} />
             <Route path="profile" element={<ProfilePage />} />
-            <Route path="admin" element={<AdminPage />} />
+            <Route element={<ProtectedRoute requireAdmin />}>
+              <Route path="admin" element={<AdminPage />} />
+            </Route>
           </Route>
         </Route>
 

@@ -43,14 +43,17 @@ async function main() {
 
     const users = await Promise.all(
       [
-        { email: 'admin@eventfsa.local', name: 'Seed Admin' },
-        { email: 'alice@eventfsa.local', name: 'Alice' },
-        { email: 'bob@eventfsa.local', name: 'Bob' },
+        // role is the source of truth for admin access (AdminGuard reads the
+        // JWT's role claim, set from User.role at login). Set it explicitly so
+        // the seeded admin actually works without relying on ADMIN_EMAILS.
+        { email: 'admin@eventfsa.local', name: 'Seed Admin', role: 'admin' as const },
+        { email: 'alice@eventfsa.local', name: 'Alice', role: 'user' as const },
+        { email: 'bob@eventfsa.local', name: 'Bob', role: 'user' as const },
       ].map((u) =>
         authDb.user.upsert({
           where: { email: u.email },
           create: { ...u, password: seedPassword },
-          update: {},
+          update: { role: u.role },
         }),
       ),
     );
