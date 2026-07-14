@@ -334,7 +334,9 @@ export class NotificationsService implements OnModuleInit {
   // Worker: process one broadcast batch. One replica in the consumer group
   // handles each batch; on completion it emits a batch-completed event stamped
   // with this instance's id so the fanout can be traced across the worker pool.
-  async onBroadcastBatch(event: NotificationBroadcastBatchEvent): Promise<void> {
+  async onBroadcastBatch(
+    event: NotificationBroadcastBatchEvent,
+  ): Promise<void> {
     const { broadcastId, batchId, title, body, data, eventId, tokens } = event;
     if (!tokens.length) return;
 

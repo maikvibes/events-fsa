@@ -49,7 +49,9 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_NUM_PARTITIONS: 3
+      # 4 partitions so the notification.broadcast-batch topic spreads across all
+      # 4 notifications worker replicas (one idle otherwise).
+      KAFKA_NUM_PARTITIONS: 4
       KAFKA_DEFAULT_REPLICATION_FACTOR: 1
       KAFKA_MIN_INSYNC_REPLICAS: 1
     volumes:

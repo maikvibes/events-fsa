@@ -60,12 +60,12 @@ async function main() {
 
     for (let offset = 0; offset < count; offset += CHUNK) {
       const n = Math.min(CHUNK, count - offset);
-      const ids: string[] = new Array(n);
-      const emails: string[] = new Array(n);
-      const names: string[] = new Array(n);
-      const tokenIds: string[] = new Array(n);
-      const tokens: string[] = new Array(n);
-      const platforms: string[] = new Array(n);
+      const ids = new Array<string>(n);
+      const emails = new Array<string>(n);
+      const names = new Array<string>(n);
+      const tokenIds = new Array<string>(n);
+      const tokens = new Array<string>(n);
+      const platforms = new Array<string>(n);
 
       for (let j = 0; j < n; j++) {
         const i = offset + j;
