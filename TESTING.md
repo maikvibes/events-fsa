@@ -22,12 +22,12 @@ npx nx affected -t test          # only what changed
 ## Bringing up the dev stack
 
 ```bash
-npm run docker:up                # build + start all services (incl. 4 notifications workers + collector)
+npm run docker:up                # build + start all services (incl. 4 notifications workers + analytics)
 docker compose -f docker-compose.dev.yml ps
 ```
 
 - API gateway: http://localhost:3000
-- Broadcast dashboard (collector): http://localhost:4500
+- Web app (admin broadcast activity): http://localhost:32141
 
 Confirm the 4 workers are running:
 
@@ -73,10 +73,11 @@ runs cleanup afterward.
 
 ## Orchestrated broadcast test (the batched-delivery e2e)
 
-Exercises the full dispatcher → 4 workers → completion pipeline and shows which
-worker instance handled how many batches.
+Exercises the full dispatcher → 4 workers → analytics pipeline and shows which
+worker instance handled how many batches. The same data powers the admin
+**Broadcast fanout activity** panel in the web app.
 
-**1. Stack up** (workers + collector must be running):
+**1. Stack up** (workers + analytics must be running):
 
 ```bash
 npm run docker:up
@@ -88,7 +89,8 @@ npm run docker:up
 npm run seed:load -- 50000            # or rely on the test's own AUDIENCE seeding
 ```
 
-**3. Open the live dashboard**: http://localhost:4500 — leave it visible.
+**3. Watch it live in the web app**: sign in as an admin and open the broadcast
+panel — the activity view updates in real time as workers report completions.
 
 **4. Run the test**:
 
@@ -101,17 +103,17 @@ AUDIENCE=5000 SEED_VUS=300 WATCH_TIMEOUT_S=120 npm run k6:orchestrated
 What it does:
 
 1. **Seed** — registers `AUDIENCE` device tokens across a small user pool.
-2. **Reset** — clears collector state (`POST /api/reset`) so only this run counts.
-3. **Fire** — `POST /notifications/broadcast` (gateway returns 202).
-4. **Watch** — polls `GET /api/stats` until the fanout *settles* (no new
-   completion event for `SETTLE_MS`, default 4s), then records metrics and logs
-   a per-instance table.
+2. **Fire** — `POST /notifications/broadcast` → `202 { broadcastId }`.
+3. **Watch** — polls `GET /notifications/broadcast-runs/:broadcastId` until the
+   run reports `status: "completed"` (analytics flips it once
+   `receivedBatches === totalBatches`), then records metrics and logs a
+   per-instance table.
 
 ### Reading the results
 
-**Live dashboard** (http://localhost:4500) — real-time tiles (instances,
-batches, sent, failed, duration) and a bar per worker instance showing batch
-distribution. `LIVE` → `SETTLED` when the fanout completes.
+**Web app** — the admin *Broadcast fanout activity* panel shows live tiles
+(instances, batches, sent, failed, tokens), a bar per worker instance, and a
+run-history list.
 
 **k6 console** — a per-instance tally, e.g.:
 
@@ -127,8 +129,8 @@ distribution. `LIVE` → `SETTLED` when the fanout completes.
 Roughly even batch counts across the 4 instances = the consumer group is
 balancing correctly across the 4 topic partitions.
 
-**Static report** — written to `k6/out/orchestrated-report.html` (self-contained
-snapshot, survives stack teardown) and `k6/out/orchestrated-stats.json`.
+**Run history** — persisted in the `analytics` DB; query any past run via
+`GET /notifications/broadcast-runs` (list) or `/:broadcastId` (detail).
 
 ### Custom metrics emitted
 
@@ -141,9 +143,9 @@ snapshot, survives stack teardown) and `k6/out/orchestrated-stats.json`.
 
 | Symptom | Likely cause |
 |---|---|
-| `collector reset failed` / no settled broadcast | Collector not running, or `COLLECTOR_URL` wrong (default `http://localhost:4500`) |
+| Run never reaches `completed` | analytics-svc down, or the dispatched event never arrived — check `docker compose logs analytics` |
 | Only 1 instance shows batches | Fewer topic partitions than workers — check `KAFKA_NUM_PARTITIONS` (should be ≥4) |
-| Dashboard empty during run | Workers not consuming — check `docker compose logs notifications` |
+| Activity panel empty during run | Workers not consuming — check `docker compose logs notifications` |
 | Fanout never settles | Raise `WATCH_TIMEOUT_S`; verify FCM creds don't block the send path |
 
 ## Cleaning up

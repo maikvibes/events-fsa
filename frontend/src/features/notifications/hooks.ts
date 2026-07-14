@@ -34,11 +34,42 @@ export function useSendNotification() {
 
 export function useBroadcast() {
   const { token } = useAuth()
+  const qc = useQueryClient()
   return useMutation({
     mutationFn: (payload: { title: string; body: string; eventId?: string }) =>
       notificationsApi.broadcast(payload, token),
-    onSuccess: (data) => toast.success(`Broadcast queued for ${data.sent} device${data.sent === 1 ? '' : 's'}`),
+    onSuccess: () => {
+      toast.success('Broadcast queued for delivery')
+      qc.invalidateQueries({ queryKey: ['broadcast-runs'] })
+    },
     onError: (e) => toast.error('Could not broadcast', { description: errorMessage(e) }),
+  })
+}
+
+// Run-history list. Polls while any run is still in flight so the table reflects
+// live progress without a manual refresh.
+export function useBroadcastRuns() {
+  const { token, isAuthenticated } = useAuth()
+  return useQuery({
+    queryKey: ['broadcast-runs'],
+    queryFn: () => notificationsApi.listBroadcastRuns(token),
+    enabled: isAuthenticated,
+    refetchInterval: (query) => {
+      const runs = query.state.data
+      const active = runs?.some((r) => r.status !== 'completed')
+      return active ? 1500 : false
+    },
+  })
+}
+
+// One run with its per-instance breakdown. Polls until the run completes.
+export function useBroadcastRun(broadcastId: string | null) {
+  const { token } = useAuth()
+  return useQuery({
+    queryKey: ['broadcast-runs', broadcastId],
+    queryFn: () => notificationsApi.getBroadcastRun(broadcastId as string, token),
+    enabled: !!broadcastId,
+    refetchInterval: (query) => (query.state.data?.status === 'completed' ? false : 1000),
   })
 }
 

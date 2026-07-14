@@ -11,3 +11,5 @@ export * from './schemas';
 export * from './auth.contracts';
 // Re-export events-svc contracts (patterns, EventDto response shape)
 export * from './events-svc.contracts';
+// Re-export analytics contracts (broadcast run patterns + response shapes)
+export * from './analytics.contracts';

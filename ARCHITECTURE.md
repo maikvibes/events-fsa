@@ -13,7 +13,7 @@ another's tables directly.
 | `auth` | Kafka | — | `auth` DB (`User`, `RefreshToken`) | Registration, login, JWT issue/refresh, roles |
 | `events` | Kafka | — | `events` DB (`Event`, `EventFollow`) | Event CRUD, follower resolution, follower-fanout emits |
 | `notifications` | Kafka | — | `notifications` DB (`DeviceToken`, `NotificationLog`) | FCM push, device-token registry, broadcast fanout — **runs 4 replicas** |
-| `collector` | Kafka consumer + HTTP | 4500 | in-memory | Aggregates broadcast completion events per worker instance; live dashboard |
+| `analytics` | Kafka | — | `analytics` DB (`BroadcastRun`, `BroadcastInstanceStat`) | Consumes broadcast dispatched/completion events, persists per-instance run history; served to the web app via the gateway |
 | `frontend` | HTTP | 32141 | — | Web admin / client |
 
 Infra: `kafka` (broker, `29092`), `postgres` (`5432`), `redis`, `migrate`
@@ -52,10 +52,12 @@ admin ─HTTP─▶ api-gateway ─Kafka(notification.broadcast)─▶ notificat
                         ▼            ▼            ▼            ▼
                    FCM multicast (≤500) + NotificationLog per user
                         │            │            │            │
-                        └────── emit notification.broadcast-batch-completed ──────┐
+                        └── emit notification.broadcast-dispatched (totals) ──────┐
+                        └── emit notification.broadcast-batch-completed ──────────┤
                                      (stamped with processedBy = hostname)        ▼
-                                                                              collector
-                                                                    aggregate per instance → dashboard
+                                                                              analytics-svc
+                                                          persist BroadcastRun + per-instance stats
+                                                          (analytics DB) ──▶ gateway ──▶ web app
 ```
 
 Key points:
@@ -68,8 +70,13 @@ Key points:
   broker default is bumped to **4 partitions** (`KAFKA_NUM_PARTITIONS`) so all 4
   worker replicas stay busy; `batchId` is the message key for even spread.
 - **Instance attribution**: each worker stamps completions with
-  `INSTANCE_ID ?? os.hostname()` (unique per replica), so the collector can show
+  `INSTANCE_ID ?? os.hostname()` (unique per replica), so analytics-svc can show
   exactly which instance handled which batches.
+- **Run history**: `analytics-svc` consumes the dispatched + completion events
+  into its own `analytics` DB. It knows the run is finished deterministically
+  (`receivedBatches === totalBatches`), not by an idle timeout. The gateway
+  proxies run queries to it over Kafka request/reply (`AnalyticsPatterns`), and
+  the admin "Broadcast fanout activity" panel renders the per-instance bars.
 - **Delivery semantics**: at-least-once. A redelivered batch may duplicate log
   rows for its users — accepted, matching the existing fire-and-forget pipeline.
 
@@ -80,15 +87,17 @@ delivery:
 
 - `notification.broadcast` — admin broadcast request (dispatcher input).
 - `notification.broadcast-batch` — one page of ≤500 tokens (worker input).
+- `notification.broadcast-dispatched` — run totals, emitted once the dispatcher
+  finishes paging (analytics input).
 - `notification.broadcast-batch-completed` — per-batch result stamped with the
-  processing instance (collector input).
+  processing instance (analytics input).
 
 ## Data ownership
 
 ```
-auth DB           events DB                notifications DB
-├─ User           ├─ Event                 ├─ DeviceToken
-└─ RefreshToken   └─ EventFollow           └─ NotificationLog
+auth DB          events DB           notifications DB      analytics DB
+├─ User          ├─ Event            ├─ DeviceToken        ├─ BroadcastRun
+└─ RefreshToken  └─ EventFollow      └─ NotificationLog    └─ BroadcastInstanceStat
 ```
 
 Cross-service data is passed in Kafka event payloads, never by cross-DB queries.

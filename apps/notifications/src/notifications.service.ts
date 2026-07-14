@@ -18,6 +18,7 @@ import {
   BroadcastDto,
   NotificationBroadcastBatchEvent,
   NotificationBroadcastBatchCompletedEvent,
+  NotificationBroadcastDispatchedEvent,
 } from '@app/shared';
 import { PrismaService } from './prisma.service';
 import { NotificationStatus, Platform } from './generated/prisma-client';
@@ -285,8 +286,9 @@ export class NotificationsService implements OnModuleInit {
   // never loads every token into one process's memory.
   async broadcast(
     dto: BroadcastDto,
+    meta?: { broadcastId?: string; requestedBy?: string; requestedAt?: Date },
   ): Promise<{ broadcastId: string; batches: number; totalTokens: number }> {
-    const broadcastId = randomUUID();
+    const broadcastId = meta?.broadcastId ?? randomUUID();
     let cursorId: string | undefined;
     let batches = 0;
     let totalTokens = 0;
@@ -328,6 +330,24 @@ export class NotificationsService implements OnModuleInit {
         `Broadcast ${broadcastId} dispatched: ${batches} batches, ${totalTokens} tokens`,
       );
     }
+
+    // Tell analytics-svc the run's expected totals so it can create the run
+    // record and later detect exact completion (receivedBatches === batches).
+    const dispatched: NotificationBroadcastDispatchedEvent = {
+      broadcastId,
+      title: dto.title,
+      body: dto.body,
+      requestedBy: meta?.requestedBy ?? 'system',
+      requestedAt: meta?.requestedAt ?? new Date(),
+      batches,
+      totalTokens,
+      dispatchedAt: new Date(),
+    };
+    this.producer.emit(
+      KafkaTopics.NOTIFICATION_BROADCAST_DISPATCHED,
+      dispatched,
+    );
+
     return { broadcastId, batches, totalTokens };
   }
 

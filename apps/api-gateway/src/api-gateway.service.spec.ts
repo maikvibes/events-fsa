@@ -5,6 +5,7 @@ import {
   AUTH_SERVICE,
   EVENTS_SERVICE,
   NOTIFICATIONS_SERVICE,
+  ANALYTICS_SERVICE,
 } from '@app/shared';
 
 describe('ApiGatewayService', () => {
@@ -58,6 +59,11 @@ describe('ApiGatewayService', () => {
     subscribeToResponseOf: jest.fn(),
     connect: jest.fn().mockResolvedValue(undefined),
   };
+  const analyticsClient = {
+    subscribeToResponseOf: jest.fn(),
+    connect: jest.fn().mockResolvedValue(undefined),
+    send: jest.fn(() => of(null)),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -67,6 +73,7 @@ describe('ApiGatewayService', () => {
         { provide: AUTH_SERVICE, useValue: authClient },
         { provide: EVENTS_SERVICE, useValue: eventsClient },
         { provide: NOTIFICATIONS_SERVICE, useValue: notificationsClient },
+        { provide: ANALYTICS_SERVICE, useValue: analyticsClient },
       ],
     }).compile();
 

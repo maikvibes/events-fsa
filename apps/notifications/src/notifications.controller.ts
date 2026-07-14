@@ -62,12 +62,19 @@ export class NotificationsController {
   // 202). Fan out to every device token in FCM multicast batches of 500.
   @EventPattern(KafkaTopics.NOTIFICATION_BROADCAST)
   onBroadcast(@Payload() event: NotificationBroadcastEvent) {
-    return this.notificationsService.broadcast({
-      title: event.title,
-      body: event.body,
-      data: event.data,
-      eventId: event.eventId,
-    });
+    return this.notificationsService.broadcast(
+      {
+        title: event.title,
+        body: event.body,
+        data: event.data,
+        eventId: event.eventId,
+      },
+      {
+        broadcastId: event.broadcastId,
+        requestedBy: event.requestedBy,
+        requestedAt: event.requestedAt,
+      },
+    );
   }
 
   // Worker: one replica in the consumer group picks up each batch, fans it out

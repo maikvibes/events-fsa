@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import type { ClientGrpc, ClientKafka } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
@@ -5,7 +6,11 @@ import {
   AUTH_SERVICE,
   EVENTS_SERVICE,
   NOTIFICATIONS_SERVICE,
+  ANALYTICS_SERVICE,
   NotificationsPatterns,
+  AnalyticsPatterns,
+  BroadcastRunSummary,
+  BroadcastRunDetail,
   KafkaTopics,
   AuthServiceClient,
   EventsServiceClient,
@@ -36,6 +41,8 @@ export class ApiGatewayService implements OnModuleInit {
     @Inject(EVENTS_SERVICE) private readonly eventsClient: ClientGrpc,
     @Inject(NOTIFICATIONS_SERVICE)
     private readonly notificationsClient: ClientKafka,
+    @Inject(ANALYTICS_SERVICE)
+    private readonly analyticsClient: ClientKafka,
   ) {}
 
   async onModuleInit() {
@@ -57,7 +64,18 @@ export class ApiGatewayService implements OnModuleInit {
       'notifications.register-token',
     );
 
+    this.analyticsClient.subscribeToResponseOf(
+      AnalyticsPatterns.LIST_BROADCAST_RUNS,
+    );
+    this.analyticsClient.subscribeToResponseOf(
+      AnalyticsPatterns.GET_BROADCAST_RUN,
+    );
+    this.analyticsClient.subscribeToResponseOf(
+      AnalyticsPatterns.GET_LATEST_BROADCAST_RUN,
+    );
+
     await this.notificationsClient.connect();
+    await this.analyticsClient.connect();
   }
 
   register(dto: RegisterDto) {
@@ -155,8 +173,10 @@ export class ApiGatewayService implements OnModuleInit {
   // Fire-and-forget: emit the broadcast to Kafka and return once the broker has
   // acked the produce. The heavy 100k-device fan-out happens in the worker, so
   // the HTTP request never blocks on delivery.
-  broadcast(dto: BroadcastDto, requestedBy: string) {
+  async broadcast(dto: BroadcastDto, requestedBy: string): Promise<string> {
+    const broadcastId = randomUUID();
     const event: NotificationBroadcastEvent = {
+      broadcastId,
       title: dto.title,
       body: dto.body,
       data: dto.data,
@@ -164,8 +184,32 @@ export class ApiGatewayService implements OnModuleInit {
       requestedBy,
       requestedAt: new Date(),
     };
-    return firstValueFrom(
+    await firstValueFrom(
       this.notificationsClient.emit(KafkaTopics.NOTIFICATION_BROADCAST, event),
+    );
+    return broadcastId;
+  }
+
+  // Broadcast run history — proxied to analytics-svc, which owns the DB.
+  listBroadcastRuns(limit?: number): Promise<BroadcastRunSummary[]> {
+    return firstValueFrom(
+      this.analyticsClient.send(AnalyticsPatterns.LIST_BROADCAST_RUNS, {
+        limit,
+      }),
+    );
+  }
+
+  getBroadcastRun(broadcastId: string): Promise<BroadcastRunDetail | null> {
+    return firstValueFrom(
+      this.analyticsClient.send(AnalyticsPatterns.GET_BROADCAST_RUN, {
+        broadcastId,
+      }),
+    );
+  }
+
+  getLatestBroadcastRun(): Promise<BroadcastRunDetail | null> {
+    return firstValueFrom(
+      this.analyticsClient.send(AnalyticsPatterns.GET_LATEST_BROADCAST_RUN, {}),
     );
   }
 

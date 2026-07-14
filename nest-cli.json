@@ -19,6 +19,15 @@
         "tsConfigPath": "apps/api-gateway/tsconfig.app.json"
       }
     },
+    "analytics": {
+      "type": "application",
+      "root": "apps/analytics",
+      "entryFile": "main",
+      "sourceRoot": "apps/analytics/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/analytics/tsconfig.app.json"
+      }
+    },
     "auth": {
       "type": "application",
       "root": "apps/auth",

@@ -5,7 +5,7 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "0.0.0.0:5432:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_SUPERUSER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:-postgres}
@@ -16,6 +16,8 @@ services:
       POSTGRES_EVENTS_PASSWORD: ${POSTGRES_EVENTS_PASSWORD:-events_pass}
       POSTGRES_NOTIFICATIONS_USER: ${POSTGRES_NOTIFICATIONS_USER:-notif_app}
       POSTGRES_NOTIFICATIONS_PASSWORD: ${POSTGRES_NOTIFICATIONS_PASSWORD:-notif_pass}
+      POSTGRES_ANALYTICS_USER: ${POSTGRES_ANALYTICS_USER:-analytics_app}
+      POSTGRES_ANALYTICS_PASSWORD: ${POSTGRES_ANALYTICS_PASSWORD:-analytics_pass}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-dbs.sql:/docker-entrypoint-initdb.d/00-init-dbs.sql:ro
@@ -33,7 +35,10 @@ services:
     image: apache/kafka:latest
     restart: unless-stopped
     ports:
-      - "29092:29092"
+      - "0.0.0.0:29092:29092"
+      # EXTERNAL listener for clients on the Windows host (reached via WSL's
+      # localhost forwarding).
+      - "0.0.0.0:29094:29094"
     environment:
       CLUSTER_ID: ${KAFKA_CLUSTER_ID:-QTk1NjcxYjhkZTVkNGU2M}
       KAFKA_NODE_ID: 1
@@ -41,9 +46,13 @@ services:
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29095
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_LOG_DIRS: /var/lib/kafka/data
-      KAFKA_LISTENERS: PLAINTEXT://kafka:29092,CONTROLLER://kafka:29095
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      # PLAINTEXT (kafka:29092) is for in-network app containers; EXTERNAL
+      # (localhost:29094) is what a host client bootstraps to and gets
+      # redirected to — so it must advertise a host-reachable address, not the
+      # docker-internal `kafka` hostname.
+      KAFKA_LISTENERS: PLAINTEXT://kafka:29092,CONTROLLER://kafka:29095,EXTERNAL://0.0.0.0:29094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,EXTERNAL://localhost:29094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
@@ -69,7 +78,7 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "0.0.0.0:6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -93,6 +102,7 @@ services:
       AUTH_DATABASE_URL: postgresql://${POSTGRES_AUTH_USER:-auth_app}:${POSTGRES_AUTH_PASSWORD:-auth_pass}@postgres:5432/auth_db
       EVENTS_DATABASE_URL: postgresql://${POSTGRES_EVENTS_USER:-events_app}:${POSTGRES_EVENTS_PASSWORD:-events_pass}@postgres:5432/events_db
       NOTIFICATIONS_DATABASE_URL: postgresql://${POSTGRES_NOTIFICATIONS_USER:-notif_app}:${POSTGRES_NOTIFICATIONS_PASSWORD:-notif_pass}@postgres:5432/notifications_db
+      ANALYTICS_DATABASE_URL: postgresql://${POSTGRES_ANALYTICS_USER:-analytics_app}:${POSTGRES_ANALYTICS_PASSWORD:-analytics_pass}@postgres:5432/analytics_db
     command: ["sh", "-c", "npm run prisma:migrate:deploy"]
     networks:
       - backend
@@ -255,27 +265,39 @@ services:
         - path: ./Dockerfile
           action: rebuild
 
-  # Broadcast completion collector: consumes notification.broadcast-batch-completed
-  # and serves a live per-instance dashboard (http://localhost:4500) + JSON API
-  # that k6/08-orchestrated-broadcast.test.js polls. Runs on the backend network
-  # so it can reach the broker at its advertised hostname (kafka:29092).
-  collector:
-    image: node:22-alpine
-    working_dir: /app
-    volumes:
-      - ./scripts/broadcast-collector.mjs:/app/broadcast-collector.mjs:ro
-    command: sh -c "npm install --no-save --no-fund --no-audit kafkajs@2.2.4 && node broadcast-collector.mjs"
+  # Analytics service: consumes broadcast dispatched/completion events, persists
+  # run history in its own analytics_db, and serves run queries to the gateway
+  # over Kafka request/reply (AnalyticsPatterns).
+  analytics:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: analytics
+    env_file: .env
     environment:
+      NODE_ENV: development
       KAFKA_BROKER: kafka:29092
-      PORT: "4500"
-      SETTLE_MS: "4000"
-    ports:
-      - "4500:4500"
+      ANALYTICS_DATABASE_URL: postgresql://${POSTGRES_ANALYTICS_USER:-analytics_app}:${POSTGRES_ANALYTICS_PASSWORD:-analytics_pass}@postgres:5432/analytics_db
     networks:
       - backend
     depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
       kafka:
         condition: service_healthy
+    develop:
+      watch:
+        - path: ./apps/analytics
+          action: rebuild
+        - path: ./libs
+          action: rebuild
+        - path: ./package.json
+          action: rebuild
+        - path: ./Dockerfile
+          action: rebuild
 
 networks:
   backend:

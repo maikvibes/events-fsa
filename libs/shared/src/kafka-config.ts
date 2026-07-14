@@ -3,6 +3,7 @@ import { ClientProviderOptions, Transport } from '@nestjs/microservices';
 export const AUTH_SERVICE = 'AUTH_SERVICE';
 export const EVENTS_SERVICE = 'EVENTS_SERVICE';
 export const NOTIFICATIONS_SERVICE = 'NOTIFICATIONS_SERVICE';
+export const ANALYTICS_SERVICE = 'ANALYTICS_SERVICE';
 export const EVENTS_KAFKA_PRODUCER = 'EVENTS_KAFKA_PRODUCER';
 export const NOTIFICATIONS_KAFKA_PRODUCER = 'NOTIFICATIONS_KAFKA_PRODUCER';
 

@@ -1,0 +1,51 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma-client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// One admin broadcast. Created from the dispatched event (which carries the
+// expected batch/token totals) and updated as per-instance completions arrive.
+model BroadcastRun {
+  id                String                  @id // broadcastId
+  title             String
+  body              String
+  requestedBy       String
+  status            BroadcastRunStatus      @default(dispatched)
+  totalBatches      Int?
+  totalTokens       Int?
+  receivedBatches   Int                     @default(0)
+  sent              Int                     @default(0)
+  failed            Int                     @default(0)
+  requestedAt       DateTime
+  firstCompletionAt DateTime?
+  lastCompletionAt  DateTime?
+  completedAt       DateTime?
+  createdAt         DateTime                @default(now())
+  instances         BroadcastInstanceStat[]
+
+  @@index([requestedAt])
+}
+
+// Per-worker-instance tally within a run — which of the 4 notifications
+// replicas processed how many batches.
+model BroadcastInstanceStat {
+  id       String       @id @default(uuid())
+  runId    String
+  instance String
+  batches  Int          @default(0)
+  sent     Int          @default(0)
+  failed   Int          @default(0)
+  run      BroadcastRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, instance])
+}
+
+enum BroadcastRunStatus {
+  dispatched
+  in_progress
+  completed
+}

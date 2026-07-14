@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAdminUsers } from '@/features/admin/hooks'
 import { useBroadcast, useSendNotification } from '@/features/notifications/hooks'
+import { BroadcastActivity } from '@/features/admin/components/broadcast-activity'
 
 const messageSchema = z.object({
   title: z.string().min(1, 'Title is required').max(100),
@@ -26,10 +27,13 @@ export function BroadcastPanel() {
   const sendToUser = useSendNotification()
   const [recipient, setRecipient] = useState<string>('')
 
+  const [activeRunId, setActiveRunId] = useState<string | null>(null)
+
   const broadcastForm = useForm<MessageValues>({ resolver: zodResolver(messageSchema) })
   const sendForm = useForm<MessageValues>({ resolver: zodResolver(messageSchema) })
 
   return (
+    <div className="space-y-4">
     <div className="grid gap-4 lg:grid-cols-2">
       <Card>
         <CardHeader>
@@ -42,7 +46,12 @@ export function BroadcastPanel() {
         <CardContent>
           <form
             onSubmit={broadcastForm.handleSubmit((values) => {
-              broadcast.mutate(values, { onSuccess: () => broadcastForm.reset() })
+              broadcast.mutate(values, {
+                onSuccess: (data) => {
+                  setActiveRunId(data.broadcastId)
+                  broadcastForm.reset()
+                },
+              })
             })}
             noValidate
           >
@@ -122,6 +131,9 @@ export function BroadcastPanel() {
           </form>
         </CardContent>
       </Card>
+    </div>
+
+      <BroadcastActivity activeId={activeRunId} />
     </div>
   )
 }

@@ -46,8 +46,10 @@ SQL
 create_role "${POSTGRES_AUTH_USER}"          "${POSTGRES_AUTH_PASSWORD}"          auth_db
 create_role "${POSTGRES_EVENTS_USER}"        "${POSTGRES_EVENTS_PASSWORD}"        events_db
 create_role "${POSTGRES_NOTIFICATIONS_USER}" "${POSTGRES_NOTIFICATIONS_PASSWORD}" notifications_db
+create_role "${POSTGRES_ANALYTICS_USER}"     "${POSTGRES_ANALYTICS_PASSWORD}"     analytics_db
 
-# Superuser keeps DDL rights on all three DBs for migrations; nothing else gets superuser.
+# Superuser keeps DDL rights on all DBs for migrations; nothing else gets superuser.
 "${PSQL[@]}" -c "ALTER DATABASE auth_db          OWNER TO ${POSTGRES_USER};"
 "${PSQL[@]}" -c "ALTER DATABASE events_db        OWNER TO ${POSTGRES_USER};"
 "${PSQL[@]}" -c "ALTER DATABASE notifications_db OWNER TO ${POSTGRES_USER};"
+"${PSQL[@]}" -c "ALTER DATABASE analytics_db     OWNER TO ${POSTGRES_USER};"

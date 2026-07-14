@@ -400,8 +400,51 @@ export class ApiGatewayController {
     @CurrentUser() user: TokenPayload,
   ) {
     // Fire-and-forget: enqueue and return 202; the worker fans out to all devices.
-    await this.apiGatewayService.broadcast(dto, user.userId);
-    return { accepted: true, message: 'Broadcast queued for delivery' };
+    // The broadcastId lets the client track this run's fanout via
+    // GET /notifications/broadcast-runs/:id.
+    const broadcastId = await this.apiGatewayService.broadcast(
+      dto,
+      user.userId,
+    );
+    return {
+      accepted: true,
+      broadcastId,
+      message: 'Broadcast queued for delivery',
+    };
+  }
+
+  @ApiTags('Notifications')
+  @ApiBearerAuth('bearerAuth')
+  @ApiOperation({ summary: 'List recent broadcast fanout runs (admin)' })
+  @ApiResponse({ status: 200, description: 'Broadcast run history' })
+  @UseGuards(AdminGuard)
+  @Get('notifications/broadcast-runs')
+  listBroadcastRuns(@Query('limit') limit?: string) {
+    return this.apiGatewayService.listBroadcastRuns(
+      limit ? Number(limit) : undefined,
+    );
+  }
+
+  @ApiTags('Notifications')
+  @ApiBearerAuth('bearerAuth')
+  @ApiOperation({ summary: 'Latest broadcast fanout run (admin)' })
+  @ApiResponse({ status: 200, description: 'Latest broadcast run' })
+  @UseGuards(AdminGuard)
+  @Get('notifications/broadcast-runs/latest')
+  getLatestBroadcastRun() {
+    return this.apiGatewayService.getLatestBroadcastRun();
+  }
+
+  @ApiTags('Notifications')
+  @ApiBearerAuth('bearerAuth')
+  @ApiOperation({
+    summary: 'One broadcast fanout run with per-instance stats (admin)',
+  })
+  @ApiResponse({ status: 200, description: 'Broadcast run detail' })
+  @UseGuards(AdminGuard)
+  @Get('notifications/broadcast-runs/:id')
+  getBroadcastRun(@Param('id') id: string) {
+    return this.apiGatewayService.getBroadcastRun(id);
   }
 
   @ApiTags('Notifications')
