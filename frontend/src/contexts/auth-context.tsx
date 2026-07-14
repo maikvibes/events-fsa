@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { AuthResponse, AuthUser } from '@/types'
 
 const AUTH_SESSION_KEY = 'authSession'
@@ -30,6 +30,19 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSessionState] = useState<StoredSession | null>(() => loadStoredSession())
 
+  const logout = useCallback(() => {
+    localStorage.removeItem(AUTH_SESSION_KEY)
+    setSessionState(null)
+  }, [])
+
+  // A 401 on an authenticated request (dispatched by the http client) means
+  // the token is gone/expired — drop the session. ProtectedRoute then bounces
+  // the user to /login.
+  useEffect(() => {
+    window.addEventListener('auth:unauthorized', logout)
+    return () => window.removeEventListener('auth:unauthorized', logout)
+  }, [logout])
+
   const value = useMemo<AuthContextValue>(() => {
     return {
       token: session?.token ?? null,
@@ -46,12 +59,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(next))
         setSessionState(next)
       },
-      logout: () => {
-        localStorage.removeItem(AUTH_SESSION_KEY)
-        setSessionState(null)
-      },
+      logout,
     }
-  }, [session])
+  }, [session, logout])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

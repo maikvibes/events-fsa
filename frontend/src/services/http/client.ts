@@ -59,6 +59,12 @@ export async function api<T = Record<string, unknown>>(
   let json: Record<string, unknown>
   try { json = text ? JSON.parse(text) : {} } catch { json = { raw: text } }
   if (!res.ok) {
+    // A 401 on a request we authenticated means the token is gone/expired/
+    // revoked — signal the auth layer to log out. Guarded on `token` so a
+    // failed login (401 with no token yet) doesn't trigger a spurious logout.
+    if (res.status === 401 && auth && token) {
+      window.dispatchEvent(new Event('auth:unauthorized'))
+    }
     const fieldErrors = Array.isArray(json.errors) ? (json.errors as ApiFieldError[]) : undefined
     const statusCode = typeof json.statusCode === 'number' ? json.statusCode : res.status
     throw new ApiError(buildErrorMessage(json, res, fieldErrors), statusCode, fieldErrors)
