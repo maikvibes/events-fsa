@@ -2,21 +2,11 @@
 // events/device-tokens/notification-logs in the other two databases).
 // Run with: npm run k6:cleanup (loads .env via `node --env-file=.env`)
 import pg from 'pg';
-import fs from 'fs';
 
 const K6_EMAIL_PATTERN = 'k6-%@test.local';
 
-function pgSslConfig() {
-  const mode = (process.env.DATABASE_SSL_MODE || '').toLowerCase();
-  if (!mode) return undefined;
-  if (mode === 'disable' || mode === 'allow' || mode === 'prefer') return false;
-  const caPath = process.env.DATABASE_SSL_CA_PATH;
-  const ca = caPath ? fs.readFileSync(caPath, 'utf8') : undefined;
-  return { rejectUnauthorized: true, ...(ca ? { ca } : {}) };
-}
-
 async function withPool(connectionString, fn) {
-  const pool = new pg.Pool({ connectionString, ssl: pgSslConfig() });
+  const pool = new pg.Pool({ connectionString });
   try {
     return await fn(pool);
   } finally {

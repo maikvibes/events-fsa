@@ -86,7 +86,7 @@ JWT-derived fields from the body schema). Until this lands, `02-events-crud`,
 `apps/api-gateway/test/app.e2e-spec.ts` imports the full `ApiGatewayModule`,
 which wires up real `ClientKafka` proxies (auth/events/notifications). Unlike
 the other apps' e2e specs, this one isn't mockable as-is — it hangs retrying
-`kafka:29093` for minutes and then fails when no broker is reachable.
+`kafka:29092` for minutes and then fails when no broker is reachable.
 
 Excluded from the `test:e2e` npm script (2026-07-03) for that reason — CI runs
 that script without a Kafka service container. To bring it back: either add a
