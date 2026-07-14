@@ -193,6 +193,7 @@ jobs:
       # tokens). Catches schema/seed drift before it reaches a running stack.
       - name: Seed (dev + bulk smoke test)
         run: |
+          npm run prisma:generate
           npm run seed
           npm run seed:load -- 1000 --fresh
         env:
