@@ -8,10 +8,7 @@ export const AnalyticsPatterns = {
 } as const;
 
 export type BroadcastRunStatus =
-  | 'dispatched'
-  | 'in_progress'
-  | 'completed'
-  | 'cancelled';
+  'dispatched' | 'in_progress' | 'completed' | 'cancelled';
 
 export interface BroadcastInstanceStatDto {
   instance: string;

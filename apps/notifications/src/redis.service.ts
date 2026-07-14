@@ -41,6 +41,8 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   async isBroadcastCancelled(broadcastId: string): Promise<boolean> {
-    return (await this.client.exists(CacheKeys.BROADCAST_CANCEL(broadcastId))) === 1;
+    return (
+      (await this.client.exists(CacheKeys.BROADCAST_CANCEL(broadcastId))) === 1
+    );
   }
 }

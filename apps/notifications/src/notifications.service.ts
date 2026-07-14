@@ -220,42 +220,23 @@ export class NotificationsService implements OnModuleInit {
     return { sent, failed };
   }
 
-  // Shared by the update/delete/announcement/reminder fanout paths — resolves
-  // every follower's device tokens in one query, since we already have the
-  // userId list (events-svc resolved it, we can't query its DB ourselves).
+  // Shared by the update/delete/announcement/reminder fanout paths. events-svc
+  // resolved the follower userId list for us; we log it in-app and route the
+  // push through the batched fanout pipeline (parallel, tracked, cancellable).
   async notifyFollowers(
     userIds: string[],
     title: string,
     body: string,
     eventId?: string,
-  ): Promise<{ sent: number; failed: number }> {
-    if (!userIds.length) return { sent: 0, failed: 0 };
-
-    // Keyset-paginate the token read so a large follower list never loads every
-    // token into memory at once; send each page as it arrives.
-    let cursorId: string | undefined;
-    const result = { sent: 0, failed: 0 };
-    for (;;) {
-      const page = await this.prisma.deviceToken.findMany({
-        where: { userId: { in: userIds } },
-        orderBy: { id: 'asc' },
-        take: NotificationsService.BATCH_SIZE,
-        ...(cursorId ? { skip: 1, cursor: { id: cursorId } } : {}),
-      });
-      if (!page.length) break;
-      const pageResult = await this.sendMulticast({
-        tokens: page.map((t) => t.token),
-        title,
-        body,
-      });
-      result.sent += pageResult.sent;
-      result.failed += pageResult.failed;
-      cursorId = page[page.length - 1].id;
-      if (page.length < NotificationsService.BATCH_SIZE) break;
+  ): Promise<{ broadcastId: string; batches: number; totalTokens: number }> {
+    if (!userIds.length) {
+      return { broadcastId: '', batches: 0, totalTokens: 0 };
     }
 
-    // One log row per follower (not per device) so /notifications/me shows a
-    // single entry per notification.
+    // Write one in-app log per follower up front — including followers with no
+    // device token — so /notifications/me shows the notification even without a
+    // push. The batched send then covers only followers that have a token, and
+    // its workers skip logging (writeLogs=false) to avoid double entries.
     await this.prisma.notificationLog.createMany({
       data: userIds.map((userId) => ({
         userId,
@@ -266,7 +247,19 @@ export class NotificationsService implements OnModuleInit {
       })),
     });
 
-    return result;
+    // Route the push through the same batched dispatcher → 4 workers → analytics
+    // pipeline as broadcasts, so event fanouts parallelize, get tracked as runs,
+    // and are cancellable.
+    return this.dispatchFanout({
+      broadcastId: randomUUID(),
+      title,
+      body,
+      eventId,
+      requestedBy: 'system',
+      requestedAt: new Date(),
+      userIds,
+      writeLogs: false,
+    });
   }
 
   async findByUser(userId: string) {
@@ -283,15 +276,41 @@ export class NotificationsService implements OnModuleInit {
     });
   }
 
-  // Dispatcher: keyset-paginate the DeviceToken table and emit one batch event
-  // per 500-token page. Does NOT send FCM or write logs itself — that is the
-  // worker's job (onBroadcastBatch), so a broadcast to millions of recipients
-  // never loads every token into one process's memory.
+  // Broadcast to every registered device — the whole-audience case of a fanout.
   async broadcast(
     dto: BroadcastDto,
     meta?: { broadcastId?: string; requestedBy?: string; requestedAt?: Date },
   ): Promise<{ broadcastId: string; batches: number; totalTokens: number }> {
-    const broadcastId = meta?.broadcastId ?? randomUUID();
+    return this.dispatchFanout({
+      broadcastId: meta?.broadcastId ?? randomUUID(),
+      title: dto.title,
+      body: dto.body,
+      data: dto.data,
+      eventId: dto.eventId,
+      requestedBy: meta?.requestedBy ?? 'system',
+      requestedAt: meta?.requestedAt ?? new Date(),
+      writeLogs: true,
+    });
+  }
+
+  // Generic dispatcher shared by broadcasts (all devices) and event
+  // follower-fanout (devices of a given userId set). Keyset-paginates the
+  // DeviceToken table and emits one batch event per 500-token page; the workers
+  // do the FCM send + logging, so no single process loads every token into
+  // memory. Emits a dispatched event so analytics can track the run.
+  private async dispatchFanout(opts: {
+    broadcastId: string;
+    title: string;
+    body: string;
+    data?: Record<string, string>;
+    eventId?: string;
+    requestedBy: string;
+    requestedAt: Date;
+    userIds?: string[]; // undefined → every device (broadcast)
+    writeLogs: boolean;
+  }): Promise<{ broadcastId: string; batches: number; totalTokens: number }> {
+    const { broadcastId, title, body, eventId, userIds, writeLogs } = opts;
+    const where = userIds ? { userId: { in: userIds } } : {};
     let cursorId: string | undefined;
     let batches = 0;
     let totalTokens = 0;
@@ -301,12 +320,13 @@ export class NotificationsService implements OnModuleInit {
       // no further batches are queued.
       if (await this.redis.isBroadcastCancelled(broadcastId)) {
         this.logger.warn(
-          `Broadcast ${broadcastId} cancelled after ${batches} batches — dispatch halted`,
+          `Fanout ${broadcastId} cancelled after ${batches} batches — dispatch halted`,
         );
         break;
       }
 
       const page = await this.prisma.deviceToken.findMany({
+        where,
         select: { id: true, token: true, userId: true },
         orderBy: { id: 'asc' },
         take: NotificationsService.BATCH_SIZE,
@@ -318,11 +338,12 @@ export class NotificationsService implements OnModuleInit {
       const event: NotificationBroadcastBatchEvent = {
         broadcastId,
         batchId,
-        title: dto.title,
-        body: dto.body,
-        data: dto.eventId ? { ...dto.data, eventId: dto.eventId } : dto.data,
-        eventId: dto.eventId,
+        title,
+        body,
+        data: eventId ? { ...opts.data, eventId } : opts.data,
+        eventId,
         tokens: page.map((t) => ({ token: t.token, userId: t.userId })),
+        writeLogs,
       };
       // batchId as the Kafka key spreads batches evenly across partitions/workers.
       this.producer.emit(KafkaTopics.NOTIFICATION_BROADCAST_BATCH, {
@@ -335,22 +356,18 @@ export class NotificationsService implements OnModuleInit {
       cursorId = page[page.length - 1].id;
     }
 
-    if (!batches) {
-      this.logger.warn('Broadcast: no device tokens registered');
-    } else {
-      this.logger.log(
-        `Broadcast ${broadcastId} dispatched: ${batches} batches, ${totalTokens} tokens`,
-      );
-    }
+    this.logger.log(
+      `Fanout ${broadcastId} dispatched: ${batches} batches, ${totalTokens} tokens`,
+    );
 
     // Tell analytics-svc the run's expected totals so it can create the run
     // record and later detect exact completion (receivedBatches === batches).
     const dispatched: NotificationBroadcastDispatchedEvent = {
       broadcastId,
-      title: dto.title,
-      body: dto.body,
-      requestedBy: meta?.requestedBy ?? 'system',
-      requestedAt: meta?.requestedAt ?? new Date(),
+      title,
+      body,
+      requestedBy: opts.requestedBy,
+      requestedAt: opts.requestedAt,
       batches,
       totalTokens,
       dispatchedAt: new Date(),
@@ -376,7 +393,7 @@ export class NotificationsService implements OnModuleInit {
     // processed once the run is cancelled. Already-sent batches can't be recalled.
     if (await this.redis.isBroadcastCancelled(broadcastId)) {
       this.logger.warn(
-        `[instance ${this.instanceId}] skipping cancelled broadcast ${broadcastId} batch ${batchId}`,
+        `[instance ${this.instanceId}] skipping cancelled fanout ${broadcastId} batch ${batchId}`,
       );
       return;
     }
@@ -388,16 +405,19 @@ export class NotificationsService implements OnModuleInit {
       data,
     });
 
-    // One log row per recipient user (not per device), matching notifyFollowers.
-    await this.prisma.notificationLog.createMany({
-      data: [...new Set(tokens.map((t) => t.userId))].map((userId) => ({
-        userId,
-        eventId,
-        title,
-        body,
-        status: NotificationStatus.sent,
-      })),
-    });
+    // One log row per recipient user (not per device). Skipped for event
+    // follower-fanout, which already wrote per-follower logs up front.
+    if (event.writeLogs !== false) {
+      await this.prisma.notificationLog.createMany({
+        data: [...new Set(tokens.map((t) => t.userId))].map((userId) => ({
+          userId,
+          eventId,
+          title,
+          body,
+          status: NotificationStatus.sent,
+        })),
+      });
+    }
 
     const completed: NotificationBroadcastBatchCompletedEvent = {
       broadcastId,

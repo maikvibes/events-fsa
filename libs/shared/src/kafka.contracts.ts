@@ -129,6 +129,10 @@ export interface NotificationBroadcastBatchEvent {
   data?: Record<string, string>;
   eventId?: string;
   tokens: { token: string; userId: string }[]; // up to 500 (FCM multicast limit)
+  // Event follower-fanout writes its per-follower logs up front (covering
+  // followers with no device token too), so those batches set this false to
+  // avoid double-logging. Broadcasts leave it true and log per batch.
+  writeLogs?: boolean;
 }
 
 // Admin cancelled an in-flight broadcast. notifications-svc sets the Redis

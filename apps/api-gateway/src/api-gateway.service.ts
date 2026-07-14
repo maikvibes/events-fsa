@@ -194,7 +194,10 @@ export class ApiGatewayService implements OnModuleInit {
   // Cooperative cancel: emit the cancelled event. notifications-svc sets the
   // Redis flag (dispatcher + workers stop sending) and analytics-svc marks the
   // run cancelled. Fire-and-forget — the run status reflects the outcome.
-  async cancelBroadcast(broadcastId: string, cancelledBy: string): Promise<void> {
+  async cancelBroadcast(
+    broadcastId: string,
+    cancelledBy: string,
+  ): Promise<void> {
     const event: NotificationBroadcastCancelledEvent = {
       broadcastId,
       cancelledBy,

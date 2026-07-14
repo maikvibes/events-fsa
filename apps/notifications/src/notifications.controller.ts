@@ -87,9 +87,7 @@ export class NotificationsController {
 
   // Set the shared Redis cancel flag so the dispatcher + workers stop sending.
   @EventPattern(KafkaTopics.NOTIFICATION_BROADCAST_CANCELLED)
-  onBroadcastCancelled(
-    @Payload() event: NotificationBroadcastCancelledEvent,
-  ) {
+  onBroadcastCancelled(@Payload() event: NotificationBroadcastCancelledEvent) {
     return this.notificationsService.cancelBroadcast(event);
   }
 
