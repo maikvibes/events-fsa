@@ -14,11 +14,21 @@ export enum KafkaTopics {
   EVENT_REMINDER_DUE = 'event.reminder-due',
   NOTIFICATION_SENT = 'notification.sent',
   NOTIFICATION_FAILED = 'notification.failed',
+  SEED_TOKENS_REQUESTED = 'seed.tokens.requested',
   NOTIFICATION_BROADCAST = 'notification.broadcast',
   NOTIFICATION_BROADCAST_DISPATCHED = 'notification.broadcast-dispatched',
   NOTIFICATION_BROADCAST_CANCELLED = 'notification.broadcast-cancelled',
   NOTIFICATION_BROADCAST_BATCH = 'notification.broadcast-batch',
   NOTIFICATION_BROADCAST_BATCH_COMPLETED = 'notification.broadcast-batch-completed',
+}
+
+// Dev/load-test seeding: notifications-svc bulk-inserts `count` device tokens
+// for this job, reporting progress under the shared seed:job:<jobId> key.
+// `fresh` deletes prior seed rows first.
+export interface SeedTokensRequestedEvent {
+  jobId: string;
+  count: number;
+  fresh: boolean;
 }
 
 export interface UserCreatedEvent {

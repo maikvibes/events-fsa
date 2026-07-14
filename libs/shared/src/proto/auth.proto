@@ -10,6 +10,17 @@ service AuthService {
   rpc ListUsers (ListUsersRequest) returns (PaginatedUsers);
   rpc UpdateUserRole (UpdateUserRoleRequest) returns (UserSummary);
   rpc DeleteUser (DeleteUserRequest) returns (Empty);
+  rpc SeedUsers (SeedUsersRequest) returns (SeedAck);
+}
+
+message SeedUsersRequest {
+  string jobId = 1;
+  int32 count = 2;
+  bool fresh = 3;
+}
+
+message SeedAck {
+  bool started = 1;
 }
 
 message Empty {}

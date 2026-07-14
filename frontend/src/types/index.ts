@@ -72,6 +72,22 @@ export interface BroadcastRunDetail extends BroadcastRunSummary {
   instances: BroadcastInstanceStat[]
 }
 
+export type SeedPartStatus = 'running' | 'done' | 'error'
+
+export interface SeedPartProgress {
+  done: number
+  total: number
+  status: SeedPartStatus
+}
+
+export interface SeedJobProgress {
+  jobId: string
+  users: SeedPartProgress
+  tokens: SeedPartProgress
+  startedAt: string | null
+  finished: boolean
+}
+
 export interface PaginatedAdminUsers {
   items: AdminUserSummary[]
   total: number

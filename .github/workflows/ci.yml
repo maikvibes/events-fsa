@@ -173,10 +173,25 @@ jobs:
           PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE auth_db;"
           PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE events_db;"
           PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE notifications_db;"
+          PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE analytics_db;"
 
       - name: Deploy migrations against a clean database
         run: npm run prisma:migrate:deploy
         env:
+          AUTH_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/auth_db?schema=public
+          EVENTS_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/events_db?schema=public
+          NOTIFICATIONS_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/notifications_db?schema=public
+          ANALYTICS_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/analytics_db?schema=public
+
+      # Smoke-test both seeders against the freshly migrated schema: the dev seed
+      # (users/events/follows + admin role) and a small bulk load (users + device
+      # tokens). Catches schema/seed drift before it reaches a running stack.
+      - name: Seed (dev + bulk smoke test)
+        run: |
+          npm run seed
+          npm run seed:load -- 1000 --fresh
+        env:
+          JWT_SECRET: ci-seed-secret
           AUTH_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/auth_db?schema=public
           EVENTS_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/events_db?schema=public
           NOTIFICATIONS_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/notifications_db?schema=public

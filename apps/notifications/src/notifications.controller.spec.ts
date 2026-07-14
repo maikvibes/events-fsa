@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
+import { SeedService } from './seed.service';
 
 describe('NotificationsController', () => {
   let controller: NotificationsController;
@@ -17,6 +18,7 @@ describe('NotificationsController', () => {
             onEventCreated: jest.fn(),
           },
         },
+        { provide: SeedService, useValue: { start: jest.fn() } },
       ],
     }).compile();
 

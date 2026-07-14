@@ -18,6 +18,7 @@ import { UsersPanel } from '@/features/admin/components/users-panel'
 import { EventsPanel } from '@/features/admin/components/events-panel'
 import { NotificationsPanel } from '@/features/admin/components/notifications-panel'
 import { BroadcastPanel } from '@/features/admin/components/broadcast-panel'
+import { SeedPanel } from '@/features/admin/components/seed-panel'
 import NotFoundPage from '@/pages/not-found-page'
 
 export default function App() {
@@ -46,6 +47,7 @@ export default function App() {
                 <Route path="events" element={<EventsPanel />} />
                 <Route path="notifications" element={<NotificationsPanel />} />
                 <Route path="broadcast" element={<BroadcastPanel />} />
+                <Route path="seed" element={<SeedPanel />} />
               </Route>
             </Route>
           </Route>

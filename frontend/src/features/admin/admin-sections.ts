@@ -1,4 +1,4 @@
-import { Bell, CalendarDays, Megaphone, Users, type LucideIcon } from 'lucide-react'
+import { Bell, CalendarDays, Database, Megaphone, Users, type LucideIcon } from 'lucide-react'
 
 // Single source of truth for the admin sections — consumed by both the in-page
 // AdminNav tab bar and the global sidebar's Administration group. Each `to` is a
@@ -14,4 +14,5 @@ export const adminSections: AdminSection[] = [
   { to: '/admin/events', label: 'Events', icon: CalendarDays },
   { to: '/admin/notifications', label: 'Notifications', icon: Bell },
   { to: '/admin/broadcast', label: 'Send', icon: Megaphone },
+  { to: '/admin/seed', label: 'Database', icon: Database },
 ]

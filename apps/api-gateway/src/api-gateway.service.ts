@@ -31,6 +31,9 @@ import {
   BroadcastDto,
   NotificationBroadcastEvent,
   NotificationBroadcastCancelledEvent,
+  SeedProgressService,
+  SeedJobProgress,
+  SeedTokensRequestedEvent,
 } from '@app/shared';
 
 @Injectable()
@@ -45,6 +48,7 @@ export class ApiGatewayService implements OnModuleInit {
     private readonly notificationsClient: ClientKafka,
     @Inject(ANALYTICS_SERVICE)
     private readonly analyticsClient: ClientKafka,
+    private readonly seedProgress: SeedProgressService,
   ) {}
 
   async onModuleInit() {
@@ -210,6 +214,26 @@ export class ApiGatewayService implements OnModuleInit {
         event,
       ),
     );
+  }
+
+  // Dev/load-test seeding: kick off per-service background seeds (auth seeds
+  // users over gRPC, notifications seeds device tokens over Kafka), each
+  // reporting into one Redis progress hash the UI polls.
+  async seedDatabase(count: number, fresh: boolean): Promise<string> {
+    const jobId = randomUUID();
+    await firstValueFrom(this.authGrpc.seedUsers({ jobId, count, fresh }));
+    const tokensEvent: SeedTokensRequestedEvent = { jobId, count, fresh };
+    await firstValueFrom(
+      this.notificationsClient.emit(
+        KafkaTopics.SEED_TOKENS_REQUESTED,
+        tokensEvent,
+      ),
+    );
+    return jobId;
+  }
+
+  getSeedProgress(jobId: string): Promise<SeedJobProgress | null> {
+    return this.seedProgress.get(jobId);
   }
 
   // Broadcast run history — proxied to analytics-svc, which owns the DB.

@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { SeedService } from './seed.service';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -18,7 +19,10 @@ describe('AuthController', () => {
     jest.clearAllMocks();
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
-      providers: [{ provide: AuthService, useValue: authService }],
+      providers: [
+        { provide: AuthService, useValue: authService },
+        { provide: SeedService, useValue: { start: jest.fn() } },
+      ],
     }).compile();
 
     controller = module.get<AuthController>(AuthController);

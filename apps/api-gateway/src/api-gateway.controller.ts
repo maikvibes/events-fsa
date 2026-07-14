@@ -476,6 +476,36 @@ export class ApiGatewayController {
     return { cancelling: true };
   }
 
+  @ApiTags('Admin')
+  @ApiBearerAuth('bearerAuth')
+  @ApiOperation({
+    summary: 'Seed the database with N users + device tokens (admin)',
+  })
+  @ApiResponse({ status: 202, description: 'Seed job started' })
+  @UseGuards(AdminGuard)
+  @HttpCode(202)
+  @Post('admin/seed')
+  startSeed(@Body() body: { count?: number; fresh?: boolean }) {
+    // Guard the size: this is a dev/load tool, cap at 1M rows per part.
+    const count = Math.min(
+      Math.max(Math.floor(Number(body?.count) || 0), 1),
+      1_000_000,
+    );
+    return this.apiGatewayService
+      .seedDatabase(count, body?.fresh === true)
+      .then((jobId) => ({ jobId, count }));
+  }
+
+  @ApiTags('Admin')
+  @ApiBearerAuth('bearerAuth')
+  @ApiOperation({ summary: 'Seed job progress (admin)' })
+  @ApiResponse({ status: 200, description: 'Seed job progress' })
+  @UseGuards(AdminGuard)
+  @Get('admin/seed/:jobId')
+  getSeedProgress(@Param('jobId') jobId: string) {
+    return this.apiGatewayService.getSeedProgress(jobId);
+  }
+
   @ApiTags('Notifications')
   @ApiBearerAuth('bearerAuth')
   @ApiOperation({ summary: 'Register a device token for push notifications' })

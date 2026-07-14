@@ -1,6 +1,7 @@
 import { Controller } from '@nestjs/common';
 import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
 import { NotificationsService } from './notifications.service';
+import { SeedService } from './seed.service';
 import { NotificationsPatterns, KafkaTopics } from '@app/shared';
 import type {
   SendNotificationDto,
@@ -13,6 +14,7 @@ import type {
   NotificationBroadcastBatchEvent,
   NotificationBroadcastCancelledEvent,
   ListNotificationsQueryDto,
+  SeedTokensRequestedEvent,
 } from '@app/shared';
 import type { Platform } from './generated/prisma-client';
 
@@ -24,7 +26,16 @@ interface RegisterDeviceTokenDto {
 
 @Controller()
 export class NotificationsController {
-  constructor(private readonly notificationsService: NotificationsService) {}
+  constructor(
+    private readonly notificationsService: NotificationsService,
+    private readonly seedService: SeedService,
+  ) {}
+
+  // Dev/load-test: bulk-seed device tokens in the background (progress → Redis).
+  @EventPattern(KafkaTopics.SEED_TOKENS_REQUESTED)
+  onSeedTokens(@Payload() event: SeedTokensRequestedEvent) {
+    this.seedService.start(event);
+  }
 
   @MessagePattern(NotificationsPatterns.SEND)
   send(@Payload() dto: SendNotificationDto) {

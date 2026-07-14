@@ -112,4 +112,15 @@ export interface AuthServiceClient {
   listUsers(data: ListUsersRequest): Observable<PaginatedUsersWire>;
   updateUserRole(data: UpdateUserRoleRequest): Observable<UserSummaryWire>;
   deleteUser(data: DeleteUserRequest): Observable<Empty>;
+  seedUsers(data: SeedUsersRequest): Observable<SeedAck>;
+}
+
+export interface SeedUsersRequest {
+  jobId: string;
+  count: number;
+  fresh: boolean;
+}
+
+export interface SeedAck {
+  started: boolean;
 }

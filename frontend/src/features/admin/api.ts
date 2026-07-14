@@ -1,5 +1,11 @@
 import { api } from '@/services/http/client'
-import type { AdminUserSummary, PaginatedAdminUsers, PaginatedNotifications, Role } from '@/types'
+import type {
+  AdminUserSummary,
+  PaginatedAdminUsers,
+  PaginatedNotifications,
+  Role,
+  SeedJobProgress,
+} from '@/types'
 
 export interface ListUsersParams {
   page?: number
@@ -47,4 +53,12 @@ export function deleteUser(userId: string, token: string | null) {
 
 export function listAllNotifications(token: string | null, params: ListNotificationsParams = {}) {
   return api<PaginatedNotifications>('GET', `/admin/notifications${buildQuery(params)}`, undefined, { token })
+}
+
+export function startSeed(count: number, fresh: boolean, token: string | null) {
+  return api<{ jobId: string; count: number }>('POST', '/admin/seed', { count, fresh }, { token })
+}
+
+export function getSeedProgress(jobId: string, token: string | null) {
+  return api<SeedJobProgress | null>('GET', `/admin/seed/${jobId}`, undefined, { token })
 }

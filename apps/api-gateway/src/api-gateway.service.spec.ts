@@ -6,6 +6,7 @@ import {
   EVENTS_SERVICE,
   NOTIFICATIONS_SERVICE,
   ANALYTICS_SERVICE,
+  SeedProgressService,
 } from '@app/shared';
 
 describe('ApiGatewayService', () => {
@@ -74,6 +75,7 @@ describe('ApiGatewayService', () => {
         { provide: EVENTS_SERVICE, useValue: eventsClient },
         { provide: NOTIFICATIONS_SERVICE, useValue: notificationsClient },
         { provide: ANALYTICS_SERVICE, useValue: analyticsClient },
+        { provide: SeedProgressService, useValue: { get: jest.fn() } },
       ],
     }).compile();
 

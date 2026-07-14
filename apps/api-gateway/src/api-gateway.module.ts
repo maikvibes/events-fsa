@@ -8,6 +8,7 @@ import {
   EVENTS_SERVICE,
   NOTIFICATIONS_SERVICE,
   ANALYTICS_SERVICE,
+  SeedProgressService,
   kafkaClientConfig,
   grpcClientConfig,
   AUTH_GRPC_PACKAGE,
@@ -37,6 +38,6 @@ import {
     ]),
   ],
   controllers: [ApiGatewayController],
-  providers: [ApiGatewayService],
+  providers: [ApiGatewayService, SeedProgressService],
 })
 export class ApiGatewayModule {}

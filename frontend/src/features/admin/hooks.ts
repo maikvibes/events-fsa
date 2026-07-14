@@ -55,3 +55,24 @@ export function useAdminNotifications(params: adminApi.ListNotificationsParams) 
     placeholderData: keepPreviousData,
   })
 }
+
+// Seed jobs: start a background seed, then poll its progress until both parts
+// (users + tokens) reach a terminal state.
+export function useStartSeed() {
+  const { token } = useAuth()
+  return useMutation({
+    mutationFn: ({ count, fresh }: { count: number; fresh: boolean }) =>
+      adminApi.startSeed(count, fresh, token),
+    onError: (e) => toast.error('Could not start seed', { description: errorMessage(e) }),
+  })
+}
+
+export function useSeedProgress(jobId: string | null) {
+  const { token } = useAuth()
+  return useQuery({
+    queryKey: ['admin', 'seed', jobId],
+    queryFn: () => adminApi.getSeedProgress(jobId as string, token),
+    enabled: !!jobId,
+    refetchInterval: (query) => (query.state.data?.finished ? false : 750),
+  })
+}

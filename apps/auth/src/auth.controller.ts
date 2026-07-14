@@ -1,6 +1,7 @@
 import { Controller } from '@nestjs/common';
 import { GrpcMethod } from '@nestjs/microservices';
 import { AuthService } from './auth.service';
+import { SeedService } from './seed.service';
 import type {
   RegisterRequest,
   LoginRequest,
@@ -15,12 +16,17 @@ import type {
   AuthResponse,
   ProfileResponse,
   TokenPayload,
+  SeedUsersRequest,
+  SeedAck,
 } from '@app/shared';
 import { Empty } from '@app/shared';
 
 @Controller()
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly seedService: SeedService,
+  ) {}
 
   @GrpcMethod('AuthService', 'Register')
   register(data: RegisterRequest): Promise<AuthResponse> {
@@ -70,6 +76,14 @@ export class AuthController {
   async deleteUser(data: DeleteUserRequest): Promise<Empty> {
     await this.authService.deleteUser(data.userId);
     return {};
+  }
+
+  // Fire-and-forget: start the background user seed and return immediately.
+  // Progress is reported to Redis and polled via the gateway.
+  @GrpcMethod('AuthService', 'SeedUsers')
+  seedUsers(data: SeedUsersRequest): SeedAck {
+    this.seedService.start(data.jobId, data.count, data.fresh);
+    return { started: true };
   }
 
   private toWire(u: UserSummary): UserSummaryWire {

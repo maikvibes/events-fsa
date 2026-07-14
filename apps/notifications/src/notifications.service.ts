@@ -24,7 +24,11 @@ import {
 } from '@app/shared';
 import { PrismaService } from './prisma.service';
 import { RedisService } from './redis.service';
-import { Prisma, NotificationStatus, Platform } from './generated/prisma-client';
+import {
+  Prisma,
+  NotificationStatus,
+  Platform,
+} from './generated/prisma-client';
 
 @Injectable()
 export class NotificationsService implements OnModuleInit {
@@ -276,7 +280,7 @@ export class NotificationsService implements OnModuleInit {
     const sortOrder = query.sortOrder ?? 'desc';
 
     const where: Prisma.NotificationLogWhereInput = {};
-    if (query.status) where.status = query.status as NotificationStatus;
+    if (query.status) where.status = query.status;
     if (query.userId) where.userId = query.userId;
     if (query.eventId) where.eventId = query.eventId;
     if (query.search) {

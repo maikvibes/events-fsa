@@ -13,3 +13,6 @@ export * from './auth.contracts';
 export * from './events-svc.contracts';
 // Re-export analytics contracts (broadcast run patterns + response shapes)
 export * from './analytics.contracts';
+// Re-export seed job contracts + the shared Redis progress service
+export * from './seed.contracts';
+export * from './seed-progress.service';
