@@ -10,6 +10,7 @@ import type {
   EventFollowerNotifyEvent,
   BroadcastDto,
   NotificationBroadcastEvent,
+  NotificationBroadcastBatchEvent,
 } from '@app/shared';
 import type { Platform } from './generated/prisma-client';
 
@@ -67,6 +68,13 @@ export class NotificationsController {
       data: event.data,
       eventId: event.eventId,
     });
+  }
+
+  // Worker: one replica in the consumer group picks up each batch, fans it out
+  // via FCM multicast, and emits a completion event stamped with its instance id.
+  @EventPattern(KafkaTopics.NOTIFICATION_BROADCAST_BATCH)
+  onBroadcastBatch(@Payload() event: NotificationBroadcastBatchEvent) {
+    return this.notificationsService.onBroadcastBatch(event);
   }
 
   // Follower fanout — events-svc resolved followerUserIds itself (it owns the

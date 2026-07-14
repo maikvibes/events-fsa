@@ -219,6 +219,12 @@ services:
       args:
         SERVICE_NAME: notifications
     env_file: .env
+    # Run 4 workers. They share one Kafka consumer group, so broadcast batches
+    # are load-balanced across replicas; each stamps its completion with a
+    # per-replica hostname (INSTANCE_ID is intentionally left unset so the code
+    # falls back to the container's unique hostname).
+    deploy:
+      replicas: 4
     environment:
       NODE_ENV: development
       KAFKA_BROKER: kafka:29092

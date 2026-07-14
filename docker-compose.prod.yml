@@ -126,7 +126,7 @@ services:
     image: ghcr.io/maikvibes/events-fsa-frontend:${IMAGE_TAG:-dev}
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "32141:80"
     networks:
       - backend
 

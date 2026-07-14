@@ -15,6 +15,8 @@ export enum KafkaTopics {
   NOTIFICATION_SENT = 'notification.sent',
   NOTIFICATION_FAILED = 'notification.failed',
   NOTIFICATION_BROADCAST = 'notification.broadcast',
+  NOTIFICATION_BROADCAST_BATCH = 'notification.broadcast-batch',
+  NOTIFICATION_BROADCAST_BATCH_COMPLETED = 'notification.broadcast-batch-completed',
 }
 
 export interface UserCreatedEvent {
@@ -97,4 +99,28 @@ export interface NotificationBroadcastEvent {
   eventId?: string;
   requestedBy: string; // admin userId, for audit
   requestedAt: Date;
+}
+
+// One page of a broadcast fanout. The dispatcher (broadcast()) keyset-paginates
+// the DeviceToken table and emits one of these per 500-token page; a single
+// worker in the notifications consumer group handles each batch.
+export interface NotificationBroadcastBatchEvent {
+  broadcastId: string; // correlates all batches of one broadcast
+  batchId: string; // Kafka message key → even worker spread
+  title: string;
+  body: string;
+  data?: Record<string, string>;
+  eventId?: string;
+  tokens: { token: string; userId: string }[]; // up to 500 (FCM multicast limit)
+}
+
+// Emitted by the worker after it finishes a batch, stamped with the instance
+// that processed it (INSTANCE_ID ?? os.hostname()).
+export interface NotificationBroadcastBatchCompletedEvent {
+  broadcastId: string;
+  batchId: string;
+  processedBy: string;
+  sent: number;
+  failed: number;
+  completedAt: Date;
 }

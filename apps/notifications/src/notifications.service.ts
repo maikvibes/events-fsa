@@ -1,3 +1,5 @@
+import { randomUUID } from 'crypto';
+import { hostname } from 'os';
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { ConfigService } from '@nestjs/config';
@@ -14,6 +16,8 @@ import {
   NOTIFICATIONS_KAFKA_PRODUCER,
   SendMulticastDto,
   BroadcastDto,
+  NotificationBroadcastBatchEvent,
+  NotificationBroadcastBatchCompletedEvent,
 } from '@app/shared';
 import { PrismaService } from './prisma.service';
 import { NotificationStatus, Platform } from './generated/prisma-client';
@@ -21,6 +25,13 @@ import { NotificationStatus, Platform } from './generated/prisma-client';
 @Injectable()
 export class NotificationsService implements OnModuleInit {
   private readonly logger = new Logger(NotificationsService.name);
+
+  // FCM multicast caps at 500 tokens; keep DB pages aligned so one page == one
+  // batch event == one sendEachForMulticast call.
+  private static readonly BATCH_SIZE = 500;
+
+  // Which worker replica this process is; stamped onto batch-completion events.
+  private readonly instanceId = process.env.INSTANCE_ID ?? hostname();
 
   constructor(
     private readonly config: ConfigService,
@@ -216,13 +227,28 @@ export class NotificationsService implements OnModuleInit {
   ): Promise<{ sent: number; failed: number }> {
     if (!userIds.length) return { sent: 0, failed: 0 };
 
-    const deviceTokens = await this.prisma.deviceToken.findMany({
-      where: { userId: { in: userIds } },
-    });
-    const tokens = deviceTokens.map((t) => t.token);
-    const result = tokens.length
-      ? await this.sendMulticast({ tokens, title, body })
-      : { sent: 0, failed: 0 };
+    // Keyset-paginate the token read so a large follower list never loads every
+    // token into memory at once; send each page as it arrives.
+    let cursorId: string | undefined;
+    const result = { sent: 0, failed: 0 };
+    for (;;) {
+      const page = await this.prisma.deviceToken.findMany({
+        where: { userId: { in: userIds } },
+        orderBy: { id: 'asc' },
+        take: NotificationsService.BATCH_SIZE,
+        ...(cursorId ? { skip: 1, cursor: { id: cursorId } } : {}),
+      });
+      if (!page.length) break;
+      const pageResult = await this.sendMulticast({
+        tokens: page.map((t) => t.token),
+        title,
+        body,
+      });
+      result.sent += pageResult.sent;
+      result.failed += pageResult.failed;
+      cursorId = page[page.length - 1].id;
+      if (page.length < NotificationsService.BATCH_SIZE) break;
+    }
 
     // One log row per follower (not per device) so /notifications/me shows a
     // single entry per notification.
@@ -253,40 +279,99 @@ export class NotificationsService implements OnModuleInit {
     });
   }
 
+  // Dispatcher: keyset-paginate the DeviceToken table and emit one batch event
+  // per 500-token page. Does NOT send FCM or write logs itself — that is the
+  // worker's job (onBroadcastBatch), so a broadcast to millions of recipients
+  // never loads every token into one process's memory.
   async broadcast(
     dto: BroadcastDto,
-  ): Promise<{ sent: number; failed: number }> {
-    const all = await this.prisma.deviceToken.findMany({
-      select: { token: true, userId: true },
-    });
-    if (!all.length) {
-      this.logger.warn('Broadcast: no device tokens registered');
-      return { sent: 0, failed: 0 };
+  ): Promise<{ broadcastId: string; batches: number; totalTokens: number }> {
+    const broadcastId = randomUUID();
+    let cursorId: string | undefined;
+    let batches = 0;
+    let totalTokens = 0;
+
+    for (;;) {
+      const page = await this.prisma.deviceToken.findMany({
+        select: { id: true, token: true, userId: true },
+        orderBy: { id: 'asc' },
+        take: NotificationsService.BATCH_SIZE,
+        ...(cursorId ? { skip: 1, cursor: { id: cursorId } } : {}),
+      });
+      if (!page.length) break;
+
+      const batchId = `${broadcastId}:${batches}`;
+      const event: NotificationBroadcastBatchEvent = {
+        broadcastId,
+        batchId,
+        title: dto.title,
+        body: dto.body,
+        data: dto.eventId ? { ...dto.data, eventId: dto.eventId } : dto.data,
+        eventId: dto.eventId,
+        tokens: page.map((t) => ({ token: t.token, userId: t.userId })),
+      };
+      // batchId as the Kafka key spreads batches evenly across partitions/workers.
+      this.producer.emit(KafkaTopics.NOTIFICATION_BROADCAST_BATCH, {
+        key: batchId,
+        value: event,
+      });
+
+      batches += 1;
+      totalTokens += page.length;
+      cursorId = page[page.length - 1].id;
     }
 
-    const tokens = all.map((t) => t.token);
-    const userIds = [...new Set(all.map((t) => t.userId))];
-    const data = dto.eventId ? { ...dto.data, eventId: dto.eventId } : dto.data;
+    if (!batches) {
+      this.logger.warn('Broadcast: no device tokens registered');
+    } else {
+      this.logger.log(
+        `Broadcast ${broadcastId} dispatched: ${batches} batches, ${totalTokens} tokens`,
+      );
+    }
+    return { broadcastId, batches, totalTokens };
+  }
+
+  // Worker: process one broadcast batch. One replica in the consumer group
+  // handles each batch; on completion it emits a batch-completed event stamped
+  // with this instance's id so the fanout can be traced across the worker pool.
+  async onBroadcastBatch(event: NotificationBroadcastBatchEvent): Promise<void> {
+    const { broadcastId, batchId, title, body, data, eventId, tokens } = event;
+    if (!tokens.length) return;
 
     const result = await this.sendMulticast({
-      tokens,
-      title: dto.title,
-      body: dto.body,
+      tokens: tokens.map((t) => t.token),
+      title,
+      body,
       data,
     });
 
     // One log row per recipient user (not per device), matching notifyFollowers.
     await this.prisma.notificationLog.createMany({
-      data: userIds.map((userId) => ({
+      data: [...new Set(tokens.map((t) => t.userId))].map((userId) => ({
         userId,
-        eventId: dto.eventId,
-        title: dto.title,
-        body: dto.body,
+        eventId,
+        title,
+        body,
         status: NotificationStatus.sent,
       })),
     });
 
-    return result;
+    const completed: NotificationBroadcastBatchCompletedEvent = {
+      broadcastId,
+      batchId,
+      processedBy: this.instanceId,
+      sent: result.sent,
+      failed: result.failed,
+      completedAt: new Date(),
+    };
+    this.producer.emit(
+      KafkaTopics.NOTIFICATION_BROADCAST_BATCH_COMPLETED,
+      completed,
+    );
+
+    this.logger.log(
+      `[instance ${this.instanceId}] broadcast ${broadcastId} batch ${batchId}: ${result.sent} sent, ${result.failed} failed`,
+    );
   }
 
   async registerDeviceToken(
