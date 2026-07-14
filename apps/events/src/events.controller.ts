@@ -109,9 +109,11 @@ export class EventsController {
       userId: e.userId,
       title: e.title,
       description: e.description,
-      date: e.date.toISOString(),
-      createdAt: e.createdAt.toISOString(),
-      updatedAt: e.updatedAt.toISOString(),
+      // Coerce with new Date(): fresh DB reads give Date objects, but Redis
+      // cache hits come back from JSON.parse with these fields as ISO strings.
+      date: new Date(e.date).toISOString(),
+      createdAt: new Date(e.createdAt).toISOString(),
+      updatedAt: new Date(e.updatedAt).toISOString(),
       ...(e.isFollowing !== undefined && { isFollowing: e.isFollowing }),
     };
   }
