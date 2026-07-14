@@ -26,6 +26,12 @@ export function getBroadcastRun(broadcastId: string, token: string | null) {
   return api<BroadcastRunDetail | null>('GET', `/notifications/broadcast-runs/${broadcastId}`, undefined, { token })
 }
 
+export function cancelBroadcastRun(broadcastId: string, token: string | null) {
+  return api<{ cancelling: boolean }>('POST', `/notifications/broadcast-runs/${broadcastId}/cancel`, undefined, {
+    token,
+  })
+}
+
 export function registerToken(payload: { token: string; platform: 'web' }, authToken: string | null) {
   return api<void>('POST', '/notifications/register-token', payload, { token: authToken })
 }

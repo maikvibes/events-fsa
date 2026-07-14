@@ -41,7 +41,7 @@ export interface AdminUserSummary {
   createdAt: string
 }
 
-export type BroadcastRunStatus = 'dispatched' | 'in_progress' | 'completed'
+export type BroadcastRunStatus = 'dispatched' | 'in_progress' | 'completed' | 'cancelled'
 
 export interface BroadcastInstanceStat {
   instance: string

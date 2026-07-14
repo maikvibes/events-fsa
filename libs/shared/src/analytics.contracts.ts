@@ -7,7 +7,11 @@ export const AnalyticsPatterns = {
   GET_LATEST_BROADCAST_RUN: 'analytics.broadcast.get-latest-run',
 } as const;
 
-export type BroadcastRunStatus = 'dispatched' | 'in_progress' | 'completed';
+export type BroadcastRunStatus =
+  | 'dispatched'
+  | 'in_progress'
+  | 'completed'
+  | 'cancelled';
 
 export interface BroadcastInstanceStatDto {
   instance: string;

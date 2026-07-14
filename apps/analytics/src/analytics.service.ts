@@ -4,6 +4,7 @@ import type {
   BroadcastRunSummary,
   NotificationBroadcastBatchCompletedEvent,
   NotificationBroadcastDispatchedEvent,
+  NotificationBroadcastCancelledEvent,
 } from '@app/shared';
 import { PrismaService } from './prisma.service';
 import type {
@@ -87,9 +88,10 @@ export class AnalyticsService {
         },
       });
 
-      // Stamp firstCompletionAt / flip to in_progress exactly once.
+      // Stamp firstCompletionAt / flip to in_progress exactly once. Guarded on
+      // completedAt so a late completion can't revive a cancelled/completed run.
       await tx.broadcastRun.updateMany({
-        where: { id: broadcastId, firstCompletionAt: null },
+        where: { id: broadcastId, firstCompletionAt: null, completedAt: null },
         data: { firstCompletionAt: completedAt, status: 'in_progress' },
       });
 
@@ -115,14 +117,42 @@ export class AnalyticsService {
     await this.maybeComplete(broadcastId);
   }
 
+  // Admin cancelled the run. Mark it terminal; guarded so a late completion
+  // can't flip it back. Upsert a stub if the cancel somehow arrives first.
+  async recordCancelled(
+    evt: NotificationBroadcastCancelledEvent,
+  ): Promise<void> {
+    const cancelledAt = new Date(evt.cancelledAt);
+    await this.prisma.broadcastRun.upsert({
+      where: { id: evt.broadcastId },
+      create: {
+        id: evt.broadcastId,
+        title: '',
+        body: '',
+        requestedBy: evt.cancelledBy,
+        requestedAt: cancelledAt,
+        status: 'cancelled',
+        completedAt: cancelledAt,
+      },
+      update: {},
+    });
+    await this.prisma.broadcastRun.updateMany({
+      where: { id: evt.broadcastId, completedAt: null },
+      data: { status: 'cancelled', completedAt: cancelledAt },
+    });
+    this.logger.warn(`Broadcast ${evt.broadcastId} marked cancelled`);
+  }
+
   // Flip to completed once we've seen every expected batch. Guarded updateMany
-  // so concurrent completions can't double-complete.
+  // so concurrent completions can't double-complete, and so a cancelled run
+  // (completedAt already set) is never resurrected to "completed".
   private async maybeComplete(broadcastId: string): Promise<void> {
     const run = await this.prisma.broadcastRun.findUnique({
       where: { id: broadcastId },
     });
     if (
       run &&
+      run.status !== 'cancelled' &&
       run.totalBatches !== null &&
       run.receivedBatches >= run.totalBatches &&
       run.completedAt === null

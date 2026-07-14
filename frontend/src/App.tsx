@@ -13,7 +13,11 @@ import EditEventPage from '@/pages/edit-event-page'
 import MyEventsPage from '@/pages/my-events-page'
 import NotificationsPage from '@/pages/notifications-page'
 import ProfilePage from '@/pages/profile-page'
-import AdminPage from '@/pages/admin-page'
+import AdminLayout from '@/pages/admin-layout'
+import { UsersPanel } from '@/features/admin/components/users-panel'
+import { EventsPanel } from '@/features/admin/components/events-panel'
+import { NotificationsPanel } from '@/features/admin/components/notifications-panel'
+import { BroadcastPanel } from '@/features/admin/components/broadcast-panel'
 import NotFoundPage from '@/pages/not-found-page'
 
 export default function App() {
@@ -36,7 +40,13 @@ export default function App() {
             <Route path="notifications" element={<NotificationsPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route element={<ProtectedRoute requireAdmin />}>
-              <Route path="admin" element={<AdminPage />} />
+              <Route path="admin" element={<AdminLayout />}>
+                <Route index element={<Navigate to="users" replace />} />
+                <Route path="users" element={<UsersPanel />} />
+                <Route path="events" element={<EventsPanel />} />
+                <Route path="notifications" element={<NotificationsPanel />} />
+                <Route path="broadcast" element={<BroadcastPanel />} />
+              </Route>
             </Route>
           </Route>
         </Route>

@@ -449,6 +449,21 @@ export class ApiGatewayController {
 
   @ApiTags('Notifications')
   @ApiBearerAuth('bearerAuth')
+  @ApiOperation({ summary: 'Cancel an in-flight broadcast (admin)' })
+  @ApiResponse({ status: 202, description: 'Cancellation requested' })
+  @UseGuards(AdminGuard)
+  @HttpCode(202)
+  @Post('notifications/broadcast-runs/:id/cancel')
+  async cancelBroadcastRun(
+    @Param('id') id: string,
+    @CurrentUser() user: TokenPayload,
+  ) {
+    await this.apiGatewayService.cancelBroadcast(id, user.userId);
+    return { cancelling: true };
+  }
+
+  @ApiTags('Notifications')
+  @ApiBearerAuth('bearerAuth')
   @ApiOperation({ summary: 'Register a device token for push notifications' })
   @ApiBody({ type: RegisterDeviceTokenBodyDto })
   @ApiResponse({ status: 201, description: 'Token registered' })

@@ -4,6 +4,7 @@ import { ClientsModule } from '@nestjs/microservices';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
 import { PrismaService } from './prisma.service';
+import { RedisService } from './redis.service';
 import { NOTIFICATIONS_KAFKA_PRODUCER, kafkaClientConfig } from '@app/shared';
 
 @Module({
@@ -12,6 +13,6 @@ import { NOTIFICATIONS_KAFKA_PRODUCER, kafkaClientConfig } from '@app/shared';
     ClientsModule.register([kafkaClientConfig(NOTIFICATIONS_KAFKA_PRODUCER)]),
   ],
   controllers: [NotificationsController],
-  providers: [NotificationsService, PrismaService],
+  providers: [NotificationsService, PrismaService, RedisService],
 })
 export class NotificationsModule {}

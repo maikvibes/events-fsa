@@ -16,6 +16,7 @@ export enum KafkaTopics {
   NOTIFICATION_FAILED = 'notification.failed',
   NOTIFICATION_BROADCAST = 'notification.broadcast',
   NOTIFICATION_BROADCAST_DISPATCHED = 'notification.broadcast-dispatched',
+  NOTIFICATION_BROADCAST_CANCELLED = 'notification.broadcast-cancelled',
   NOTIFICATION_BROADCAST_BATCH = 'notification.broadcast-batch',
   NOTIFICATION_BROADCAST_BATCH_COMPLETED = 'notification.broadcast-batch-completed',
 }
@@ -128,6 +129,15 @@ export interface NotificationBroadcastBatchEvent {
   data?: Record<string, string>;
   eventId?: string;
   tokens: { token: string; userId: string }[]; // up to 500 (FCM multicast limit)
+}
+
+// Admin cancelled an in-flight broadcast. notifications-svc sets the Redis
+// cancel flag (so the dispatcher + workers stop sending); analytics-svc marks
+// the run cancelled.
+export interface NotificationBroadcastCancelledEvent {
+  broadcastId: string;
+  cancelledBy: string;
+  cancelledAt: Date;
 }
 
 // Emitted by the worker after it finishes a batch, stamped with the instance

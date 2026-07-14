@@ -11,6 +11,7 @@ import type {
   BroadcastDto,
   NotificationBroadcastEvent,
   NotificationBroadcastBatchEvent,
+  NotificationBroadcastCancelledEvent,
 } from '@app/shared';
 import type { Platform } from './generated/prisma-client';
 
@@ -82,6 +83,14 @@ export class NotificationsController {
   @EventPattern(KafkaTopics.NOTIFICATION_BROADCAST_BATCH)
   onBroadcastBatch(@Payload() event: NotificationBroadcastBatchEvent) {
     return this.notificationsService.onBroadcastBatch(event);
+  }
+
+  // Set the shared Redis cancel flag so the dispatcher + workers stop sending.
+  @EventPattern(KafkaTopics.NOTIFICATION_BROADCAST_CANCELLED)
+  onBroadcastCancelled(
+    @Payload() event: NotificationBroadcastCancelledEvent,
+  ) {
+    return this.notificationsService.cancelBroadcast(event);
   }
 
   // Follower fanout — events-svc resolved followerUserIds itself (it owns the

@@ -29,6 +29,7 @@ import {
   SendToUserDto,
   BroadcastDto,
   NotificationBroadcastEvent,
+  NotificationBroadcastCancelledEvent,
 } from '@app/shared';
 
 @Injectable()
@@ -188,6 +189,23 @@ export class ApiGatewayService implements OnModuleInit {
       this.notificationsClient.emit(KafkaTopics.NOTIFICATION_BROADCAST, event),
     );
     return broadcastId;
+  }
+
+  // Cooperative cancel: emit the cancelled event. notifications-svc sets the
+  // Redis flag (dispatcher + workers stop sending) and analytics-svc marks the
+  // run cancelled. Fire-and-forget — the run status reflects the outcome.
+  async cancelBroadcast(broadcastId: string, cancelledBy: string): Promise<void> {
+    const event: NotificationBroadcastCancelledEvent = {
+      broadcastId,
+      cancelledBy,
+      cancelledAt: new Date(),
+    };
+    await firstValueFrom(
+      this.notificationsClient.emit(
+        KafkaTopics.NOTIFICATION_BROADCAST_CANCELLED,
+        event,
+      ),
+    );
   }
 
   // Broadcast run history — proxied to analytics-svc, which owns the DB.

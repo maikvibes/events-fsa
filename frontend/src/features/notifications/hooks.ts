@@ -62,14 +62,31 @@ export function useBroadcastRuns() {
   })
 }
 
-// One run with its per-instance breakdown. Polls until the run completes.
+// One run with its per-instance breakdown. Polls until the run reaches a
+// terminal state (completed or cancelled).
 export function useBroadcastRun(broadcastId: string | null) {
   const { token } = useAuth()
   return useQuery({
     queryKey: ['broadcast-runs', broadcastId],
     queryFn: () => notificationsApi.getBroadcastRun(broadcastId as string, token),
     enabled: !!broadcastId,
-    refetchInterval: (query) => (query.state.data?.status === 'completed' ? false : 1000),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status
+      return status === 'completed' || status === 'cancelled' ? false : 1000
+    },
+  })
+}
+
+export function useCancelBroadcast() {
+  const { token } = useAuth()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (broadcastId: string) => notificationsApi.cancelBroadcastRun(broadcastId, token),
+    onSuccess: () => {
+      toast.success('Cancelling broadcast…')
+      qc.invalidateQueries({ queryKey: ['broadcast-runs'] })
+    },
+    onError: (e) => toast.error('Could not cancel', { description: errorMessage(e) }),
   })
 }
 

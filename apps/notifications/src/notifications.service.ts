@@ -19,8 +19,10 @@ import {
   NotificationBroadcastBatchEvent,
   NotificationBroadcastBatchCompletedEvent,
   NotificationBroadcastDispatchedEvent,
+  NotificationBroadcastCancelledEvent,
 } from '@app/shared';
 import { PrismaService } from './prisma.service';
+import { RedisService } from './redis.service';
 import { NotificationStatus, Platform } from './generated/prisma-client';
 
 @Injectable()
@@ -37,6 +39,7 @@ export class NotificationsService implements OnModuleInit {
   constructor(
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
     @Inject(NOTIFICATIONS_KAFKA_PRODUCER)
     private readonly producer: ClientProxy,
   ) {}
@@ -294,6 +297,15 @@ export class NotificationsService implements OnModuleInit {
     let totalTokens = 0;
 
     for (;;) {
+      // Cooperative cancellation: stop paging as soon as the run is cancelled so
+      // no further batches are queued.
+      if (await this.redis.isBroadcastCancelled(broadcastId)) {
+        this.logger.warn(
+          `Broadcast ${broadcastId} cancelled after ${batches} batches — dispatch halted`,
+        );
+        break;
+      }
+
       const page = await this.prisma.deviceToken.findMany({
         select: { id: true, token: true, userId: true },
         orderBy: { id: 'asc' },
@@ -360,6 +372,15 @@ export class NotificationsService implements OnModuleInit {
     const { broadcastId, batchId, title, body, data, eventId, tokens } = event;
     if (!tokens.length) return;
 
+    // Cooperative cancellation: skip the FCM send for any batch not yet
+    // processed once the run is cancelled. Already-sent batches can't be recalled.
+    if (await this.redis.isBroadcastCancelled(broadcastId)) {
+      this.logger.warn(
+        `[instance ${this.instanceId}] skipping cancelled broadcast ${broadcastId} batch ${batchId}`,
+      );
+      return;
+    }
+
     const result = await this.sendMulticast({
       tokens: tokens.map((t) => t.token),
       title,
@@ -393,6 +414,18 @@ export class NotificationsService implements OnModuleInit {
 
     this.logger.log(
       `[instance ${this.instanceId}] broadcast ${broadcastId} batch ${batchId}: ${result.sent} sent, ${result.failed} failed`,
+    );
+  }
+
+  // Set the shared cancel flag so the dispatcher + every worker stop sending
+  // this broadcast. The gateway emits the cancelled event; analytics consumes
+  // the same event to mark the run.
+  async cancelBroadcast(
+    event: NotificationBroadcastCancelledEvent,
+  ): Promise<void> {
+    await this.redis.markBroadcastCancelled(event.broadcastId);
+    this.logger.warn(
+      `Broadcast ${event.broadcastId} cancelled by ${event.cancelledBy}`,
     );
   }
 

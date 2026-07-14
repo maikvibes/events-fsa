@@ -5,6 +5,7 @@ import { AnalyticsPatterns, KafkaTopics } from '@app/shared';
 import type {
   NotificationBroadcastDispatchedEvent,
   NotificationBroadcastBatchCompletedEvent,
+  NotificationBroadcastCancelledEvent,
 } from '@app/shared';
 
 @Controller()
@@ -21,6 +22,11 @@ export class AnalyticsController {
   @EventPattern(KafkaTopics.NOTIFICATION_BROADCAST_BATCH_COMPLETED)
   onBatchCompleted(@Payload() event: NotificationBroadcastBatchCompletedEvent) {
     return this.analytics.recordCompletion(event);
+  }
+
+  @EventPattern(KafkaTopics.NOTIFICATION_BROADCAST_CANCELLED)
+  onCancelled(@Payload() event: NotificationBroadcastCancelledEvent) {
+    return this.analytics.recordCancelled(event);
   }
 
   // --- Request/reply: served to the gateway for the web app ---

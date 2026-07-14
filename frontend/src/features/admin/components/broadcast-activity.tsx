@@ -1,15 +1,20 @@
 import { useState } from 'react'
-import { ActivityIcon } from 'lucide-react'
+import { ActivityIcon, XIcon } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { useBroadcastRun, useBroadcastRuns } from '@/features/notifications/hooks'
+import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
+import { useBroadcastRun, useBroadcastRuns, useCancelBroadcast } from '@/features/notifications/hooks'
 import type { BroadcastRunStatus } from '@/types'
 
 const STATUS_VARIANT: Record<BroadcastRunStatus, { label: string; className: string }> = {
   dispatched: { label: 'Dispatched', className: 'bg-muted text-muted-foreground' },
   in_progress: { label: 'In progress', className: 'bg-blue-500/15 text-blue-500' },
   completed: { label: 'Completed', className: 'bg-emerald-500/15 text-emerald-500' },
+  cancelled: { label: 'Cancelled', className: 'bg-amber-500/15 text-amber-500' },
 }
+
+const TERMINAL: BroadcastRunStatus[] = ['completed', 'cancelled']
 
 function fmt(n: number | null | undefined) {
   return (n ?? 0).toLocaleString()
@@ -37,8 +42,10 @@ export function BroadcastActivity({ activeId }: { activeId: string | null }) {
   const effectiveId = picked ?? activeId ?? runs.data?.[0]?.broadcastId ?? null
 
   const detail = useBroadcastRun(effectiveId)
+  const cancel = useCancelBroadcast()
   const run = detail.data ?? null
   const maxBatches = Math.max(1, ...(run?.instances ?? []).map((i) => i.batches))
+  const cancellable = run != null && !TERMINAL.includes(run.status)
 
   return (
     <Card>
@@ -55,6 +62,18 @@ export function BroadcastActivity({ activeId }: { activeId: string | null }) {
             <div className="flex flex-wrap items-center gap-2">
               <Badge className={STATUS_VARIANT[run.status].className}>{STATUS_VARIANT[run.status].label}</Badge>
               <span className="truncate text-sm font-medium">{run.title || '(untitled)'}</span>
+              {cancellable && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="ml-auto"
+                  disabled={cancel.isPending}
+                  onClick={() => cancel.mutate(run.broadcastId)}
+                >
+                  {cancel.isPending ? <Spinner data-icon="inline-start" /> : <XIcon className="size-3.5" />}
+                  Cancel
+                </Button>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
