@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import { Bell, CalendarDays, LayoutDashboard, ShieldCheck, Star, User as UserIcon } from 'lucide-react'
+import { Bell, CalendarDays, LayoutDashboard, Star, User as UserIcon } from 'lucide-react'
 import {
   Sidebar,
   SidebarContent,
@@ -13,6 +13,7 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
 import { useAuth } from '@/contexts/auth-context'
+import { adminSections } from '@/features/admin/admin-sections'
 
 const mainNav = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -71,12 +72,18 @@ export function AppSidebar() {
             <SidebarGroupLabel>Administration</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton tooltip="Admin" isActive={isActive('/admin', false)} render={<NavLink to="/admin" />}>
-                    <ShieldCheck data-icon="inline-start" />
-                    <span>Admin console</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                {adminSections.map((section) => (
+                  <SidebarMenuItem key={section.to}>
+                    <SidebarMenuButton
+                      tooltip={section.label}
+                      isActive={isActive(section.to, false)}
+                      render={<NavLink to={section.to} />}
+                    >
+                      <section.icon data-icon="inline-start" />
+                      <span>{section.label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
