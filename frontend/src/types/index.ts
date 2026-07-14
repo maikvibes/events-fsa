@@ -78,3 +78,10 @@ export interface PaginatedAdminUsers {
   page: number
   pageSize: number
 }
+
+export interface PaginatedNotifications {
+  items: NotificationLogEntry[]
+  total: number
+  page: number
+  pageSize: number
+}

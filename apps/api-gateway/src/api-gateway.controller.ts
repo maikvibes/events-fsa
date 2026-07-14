@@ -37,6 +37,7 @@ import {
   BroadcastSchema,
   RegisterDeviceTokenSchema,
   ListUsersQuerySchema,
+  ListNotificationsQuerySchema,
   UpdateUserRoleSchema,
 } from '@app/shared';
 import type {
@@ -46,6 +47,7 @@ import type {
   SendToUserDto,
   BroadcastDto,
   RegisterDeviceTokenDto,
+  ListNotificationsQueryDto,
 } from '@app/shared';
 import {
   RegisterBodyDto,
@@ -187,10 +189,22 @@ export class ApiGatewayController {
   @ApiResponse({ status: 200, description: 'Notifications returned' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Admin only' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'pageSize', required: false, type: Number })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'status', required: false, enum: ['sent', 'failed'] })
+  @ApiQuery({ name: 'userId', required: false, type: String })
+  @ApiQuery({ name: 'eventId', required: false, type: String })
+  @ApiQuery({ name: 'createdFrom', required: false, type: String })
+  @ApiQuery({ name: 'createdTo', required: false, type: String })
+  @ApiQuery({ name: 'sortOrder', required: false, enum: ['asc', 'desc'] })
   @UseGuards(AdminGuard)
   @Get('admin/notifications')
-  listAllNotifications() {
-    return this.apiGatewayService.listAllNotifications();
+  listAllNotifications(
+    @Query(new ZodValidationPipe(ListNotificationsQuerySchema))
+    query: ListNotificationsQueryDto,
+  ) {
+    return this.apiGatewayService.listAllNotifications(query);
   }
 
   @ApiTags('Events')

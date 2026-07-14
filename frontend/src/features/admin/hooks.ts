@@ -46,11 +46,12 @@ export function useUpdateUserRole() {
   })
 }
 
-export function useAdminNotifications() {
+export function useAdminNotifications(params: adminApi.ListNotificationsParams) {
   const { token, isAuthenticated } = useAuth()
   return useQuery({
-    queryKey: ['admin', 'notifications'],
-    queryFn: () => adminApi.listAllNotifications(token),
+    queryKey: ['admin', 'notifications', params],
+    queryFn: () => adminApi.listAllNotifications(token, params),
     enabled: isAuthenticated,
+    placeholderData: keepPreviousData,
   })
 }

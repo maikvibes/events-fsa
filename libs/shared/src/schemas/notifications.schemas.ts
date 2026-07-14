@@ -39,8 +39,44 @@ export const BroadcastSchema = z.object({
   eventId: z.uuid().optional(),
 });
 
+// Admin notification-log listing: pagination + filtering. `search` matches the
+// title/body; `status` filters sent/failed; `userId`/`eventId` narrow to a
+// recipient/event; `createdFrom`/`createdTo` bound the date range (inclusive).
+export const ListNotificationsQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).optional(),
+  pageSize: z.coerce.number().int().min(1).max(100).optional(),
+  search: z.string().trim().min(1).max(200).optional(),
+  status: z.enum(['sent', 'failed']).optional(),
+  userId: z.uuid().optional(),
+  eventId: z.uuid().optional(),
+  createdFrom: z.iso.date().optional(),
+  createdTo: z.iso.date().optional(),
+  sortOrder: z.enum(['asc', 'desc']).optional(),
+});
+
+export interface NotificationLogItem {
+  id: string;
+  userId: string;
+  eventId: string | null;
+  title: string;
+  body: string;
+  status: string;
+  error: string | null;
+  createdAt: string;
+}
+
+export interface PaginatedNotifications {
+  items: NotificationLogItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export type SendNotificationDto = z.infer<typeof SendNotificationSchema>;
 export type SendToUserDto = z.infer<typeof SendToUserSchema>;
 export type SendMulticastDto = z.infer<typeof SendMulticastSchema>;
 export type RegisterDeviceTokenDto = z.infer<typeof RegisterDeviceTokenSchema>;
 export type BroadcastDto = z.infer<typeof BroadcastSchema>;
+export type ListNotificationsQueryDto = z.infer<
+  typeof ListNotificationsQuerySchema
+>;

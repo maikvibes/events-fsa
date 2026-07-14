@@ -1,5 +1,5 @@
 import { api } from '@/services/http/client'
-import type { AdminUserSummary, PaginatedAdminUsers, NotificationLogEntry, Role } from '@/types'
+import type { AdminUserSummary, PaginatedAdminUsers, PaginatedNotifications, Role } from '@/types'
 
 export interface ListUsersParams {
   page?: number
@@ -12,7 +12,19 @@ export interface ListUsersParams {
   sortOrder?: 'asc' | 'desc'
 }
 
-function buildQuery(params: ListUsersParams): string {
+export interface ListNotificationsParams {
+  page?: number
+  pageSize?: number
+  search?: string
+  status?: 'sent' | 'failed'
+  userId?: string
+  eventId?: string
+  createdFrom?: string
+  createdTo?: string
+  sortOrder?: 'asc' | 'desc'
+}
+
+function buildQuery(params: object): string {
   const qs = new URLSearchParams()
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== '') qs.set(key, String(value))
@@ -33,6 +45,6 @@ export function deleteUser(userId: string, token: string | null) {
   return api<void>('DELETE', `/admin/users/${userId}`, undefined, { token })
 }
 
-export function listAllNotifications(token: string | null) {
-  return api<NotificationLogEntry[]>('GET', '/admin/notifications', undefined, { token })
+export function listAllNotifications(token: string | null, params: ListNotificationsParams = {}) {
+  return api<PaginatedNotifications>('GET', `/admin/notifications${buildQuery(params)}`, undefined, { token })
 }

@@ -23,6 +23,7 @@ import {
   RegisterDto,
   LoginDto,
   ListUsersQueryDto,
+  ListNotificationsQueryDto,
   CreateEventDto,
   UpdateEventDto,
   AnnounceEventDto,
@@ -256,9 +257,9 @@ export class ApiGatewayService implements OnModuleInit {
     );
   }
 
-  listAllNotifications() {
+  listAllNotifications(query: ListNotificationsQueryDto = {}) {
     return firstValueFrom(
-      this.notificationsClient.send(NotificationsPatterns.FIND_ALL, {}),
+      this.notificationsClient.send(NotificationsPatterns.FIND_ALL, query),
     );
   }
 

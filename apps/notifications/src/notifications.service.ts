@@ -20,10 +20,11 @@ import {
   NotificationBroadcastBatchCompletedEvent,
   NotificationBroadcastDispatchedEvent,
   NotificationBroadcastCancelledEvent,
+  ListNotificationsQueryDto,
 } from '@app/shared';
 import { PrismaService } from './prisma.service';
 import { RedisService } from './redis.service';
-import { NotificationStatus, Platform } from './generated/prisma-client';
+import { Prisma, NotificationStatus, Platform } from './generated/prisma-client';
 
 @Injectable()
 export class NotificationsService implements OnModuleInit {
@@ -269,11 +270,44 @@ export class NotificationsService implements OnModuleInit {
     });
   }
 
-  async findAll(limit = 200) {
-    return this.prisma.notificationLog.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-    });
+  async findAll(query: ListNotificationsQueryDto = {}) {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+    const sortOrder = query.sortOrder ?? 'desc';
+
+    const where: Prisma.NotificationLogWhereInput = {};
+    if (query.status) where.status = query.status as NotificationStatus;
+    if (query.userId) where.userId = query.userId;
+    if (query.eventId) where.eventId = query.eventId;
+    if (query.search) {
+      where.OR = [
+        { title: { contains: query.search, mode: 'insensitive' } },
+        { body: { contains: query.search, mode: 'insensitive' } },
+      ];
+    }
+    if (query.createdFrom || query.createdTo) {
+      const createdAt: Prisma.DateTimeFilter = {};
+      if (query.createdFrom) createdAt.gte = new Date(query.createdFrom);
+      if (query.createdTo) {
+        // Inclusive of the whole `createdTo` day: bound by < next midnight.
+        const to = new Date(query.createdTo);
+        to.setDate(to.getDate() + 1);
+        createdAt.lt = to;
+      }
+      where.createdAt = createdAt;
+    }
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.notificationLog.findMany({
+        where,
+        orderBy: { createdAt: sortOrder },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.notificationLog.count({ where }),
+    ]);
+
+    return { items, total, page, pageSize };
   }
 
   // Broadcast to every registered device — the whole-audience case of a fanout.

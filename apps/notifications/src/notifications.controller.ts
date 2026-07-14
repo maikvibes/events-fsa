@@ -12,6 +12,7 @@ import type {
   NotificationBroadcastEvent,
   NotificationBroadcastBatchEvent,
   NotificationBroadcastCancelledEvent,
+  ListNotificationsQueryDto,
 } from '@app/shared';
 import type { Platform } from './generated/prisma-client';
 
@@ -139,7 +140,7 @@ export class NotificationsController {
   }
 
   @MessagePattern(NotificationsPatterns.FIND_ALL)
-  findAll() {
-    return this.notificationsService.findAll();
+  findAll(@Payload() query: ListNotificationsQueryDto) {
+    return this.notificationsService.findAll(query);
   }
 }
