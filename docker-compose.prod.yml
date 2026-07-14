@@ -184,6 +184,11 @@ services:
   notifications:
     image: ghcr.io/maikvibes/events-fsa-notifications:${IMAGE_TAG:-dev}
     restart: unless-stopped
+    # Run 5 workers sharing one Kafka consumer group, so broadcast batches are
+    # load-balanced across replicas. INSTANCE_ID is intentionally unset so each
+    # replica falls back to its unique container hostname.
+    deploy:
+      replicas: 5
     env_file: .env
     environment:
       NODE_ENV: production
